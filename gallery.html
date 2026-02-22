@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gallery — Prus Photography</title>
+    <meta name="description"
+        content="Browse the full gallery of Prus Photography. Filter by category — Portraits, Landscape, Street, Events, and Black & White." />
+    <link rel="icon" type="image/png" href="/images/logo.png" />
+    <link rel="stylesheet" href="/css/index.css" />
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="main-nav visible" id="mainNav">
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <img src="/images/logo.png" alt="Prus Photography" />
+            </a>
+            <div class="nav-links" id="navLinks">
+                <a href="/">Home</a>
+                <a href="/gallery.html" class="active">Gallery</a>
+                <a href="/about.html">About</a>
+                <a href="/contact.html">Contact</a>
+            </div>
+            <button class="nav-hamburger" id="navHamburger" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Gallery Hero -->
+    <section class="about-hero">
+        <div class="container">
+            <p class="text-uppercase reveal-on-scroll"
+                style="color: var(--text-secondary); margin-bottom: var(--space-sm);">Explore</p>
+            <h1 class="reveal-on-scroll">Gallery</h1>
+        </div>
+    </section>
+
+    <!-- Filter + Grid -->
+    <section class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="gallery-filters reveal-on-scroll" id="galleryFilters">
+                <button class="filter-btn active" data-category="all">All</button>
+                <button class="filter-btn" data-category="portraits">Portraits</button>
+                <button class="filter-btn" data-category="landscape">Landscape</button>
+                <button class="filter-btn" data-category="street">Street</button>
+                <button class="filter-btn" data-category="events">Events</button>
+                <button class="filter-btn" data-category="bw">Black & White</button>
+            </div>
+            <div class="photo-grid" id="galleryGrid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">✕</button>
+        <button class="lightbox-nav lightbox-prev" id="lightboxPrev">‹</button>
+        <button class="lightbox-nav lightbox-next" id="lightboxNext">›</button>
+        <div class="lightbox-content">
+            <canvas id="lightboxCanvas"></canvas>
+            <div class="lightbox-info">
+                <h3 class="lightbox-title" id="lightboxTitle"></h3>
+                <p class="lightbox-category" id="lightboxCategory"></p>
+                <a href="#" class="lightbox-purchase" id="lightboxPurchase">
+                    ✉ Inquire About This Print
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <img src="/images/logo.png" alt="Prus Photography" class="footer-logo" />
+            <p class="footer-text">© 2026 Prus Photography. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script type="module" src="/js/watermark.js"></script>
+    <script type="module" src="/js/gallery.js"></script>
+    <script type="module" src="/js/main.js"></script>
+</body>
+
+</html>

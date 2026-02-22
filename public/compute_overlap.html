@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background: #eee;
+            margin: 0;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        canvas {
+            background: white;
+            border: 1px solid #ccc;
+            max-width: 100%;
+        }
+
+        #result {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #raw-svg {
+            display: none;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .control-group {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Manual SVG Pose Matcher</h1>
+    <div id="result">Overlap: 0%</div>
+
+    <div class="grid">
+        <div>
+            <h3>Logo (Normalized) - RED</h3>
+            <canvas id="canvas-logo" width="400" height="400"></canvas>
+        </div>
+        <div>
+            <h3>SVG (Normalized) - BLUE</h3>
+            <canvas id="canvas-svg" width="400" height="400"></canvas>
+        </div>
+        <div>
+            <h3>Diff Output (Purple = Overlap)</h3>
+            <canvas id="canvas-diff" width="400" height="400"></canvas>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>Torso Rot</label> <input type="range" id="torsoRot" min="-45" max="45" value="5"
+                oninput="updateSVG()"> <span id="val_torsoRot">5</span><br>
+            <label>Arm L Rot</label> <input type="range" id="armLRot" min="-90" max="90" value="15"
+                oninput="updateSVG()"> <span id="val_armLRot">15</span><br>
+            <label>Arm R Rot</label> <input type="range" id="armRRot" min="-90" max="90" value="25"
+                oninput="updateSVG()"> <span id="val_armRRot">25</span><br>
+            <label>Leg L Rot</label> <input type="range" id="legLRot" min="-90" max="90" value="35"
+                oninput="updateSVG()"> <span id="val_legLRot">35</span><br>
+            <label>Shin L Rot</label> <input type="range" id="shinLRot" min="-90" max="90" value="0"
+                oninput="updateSVG()"> <span id="val_shinLRot">0</span><br>
+            <label>Leg R Rot</label> <input type="range" id="legRRot" min="-90" max="90" value="-35"
+                oninput="updateSVG()"> <span id="val_legRRot">-35</span><br>
+            <label>Shin R Rot</label> <input type="range" id="shinRRot" min="-90" max="90" value="30"
+                oninput="updateSVG()"> <span id="val_shinRRot">30</span><br>
+        </div>
+        <div class="control-group">
+            <label>Scale Mult</label> <input type="range" id="scaleX" min="0.5" max="1.5" step="0.01" value="1"
+                oninput="updateSVG()"> <span id="val_scaleX">1.0</span><br>
+            <label>Scale Y</label> <input type="range" id="scaleY" min="0.5" max="1.5" step="0.01" value="1"
+                oninput="updateSVG()"> <span id="val_scaleY">1.0</span><br>
+            <label>Offset X</label> <input type="range" id="offsetX" min="-50" max="50" value="0" oninput="updateSVG()">
+            <span id="val_offsetX">0</span><br>
+            <label>Offset Y</label> <input type="range" id="offsetY" min="-50" max="50" value="0" oninput="updateSVG()">
+            <span id="val_offsetY">0</span><br>
+            <label>Briefcase Scale</label> <input type="range" id="caseScale" min="1" max="5" step="0.1" value="1.8"
+                oninput="updateSVG()"> <span id="val_caseScale">1.8</span><br>
+        </div>
+    </div>
+
+    <img src="/images/logo.png" id="logo-img" crossorigin="anonymous" style="display:none;" />
+
+    <div id="raw-svg">
+        <svg viewBox="0 0 200 340" width="200" height="340" xmlns="http://www.w3.org/2000/svg" id="work-svg">
+            <g class="man-upper">
+                <g class="torso" style="transform-origin: 100px 100px;">
+                    <!-- Moved Head slightly right to match logo -->
+                    <ellipse class="head" cx="110" cy="28" rx="18" ry="22" fill="#111" transform="rotate(5, 110, 28)" />
+                    <path d="M104,48 L116,48 L117,62 L103,62 Z" fill="#111" />
+                    <!-- Widened Torso perfectly thick for logo footprint -->
+                    <path
+                        d="M78,62 C82,58 96,55 110,55 C120,55 130,58 135,62 C140,70 142,82 140,94 C138,106 135,118 130,128 C126,136 120,142 112,144 C104,146 96,145 90,141 C84,137 80,131 78,124 C76,114 75,102 76,90 C77,78 75,68 78,62 Z"
+                        fill="#111" />
+                    <g class="arm-l" style="transform-origin:84px 66px;">
+                        <!-- Thickened Left Arm -->
+                        <path
+                            d="M86,60 C80,62 70,72 60,86 C52,96 46,108 42,118 C38,128 40,134 46,132 C52,128 60,116 66,104 C74,88 80,74 86,66 L94,62 Z"
+                            fill="#111" />
+                        <ellipse cx="42" cy="126" rx="12" ry="11" fill="#111" />
+                    </g>
+                    <g class="arm-r" style="transform-origin:124px 66px;">
+                        <!-- Thickened right arm and merged with briefcase -->
+                        <path
+                            d="M126,60 C128,62 136,70 142,80 C148,90 154,100 158,110 C162,118 166,126 166,130 C166,136 160,138 156,134 C152,128 148,118 142,106 C136,94 132,80 128,70 L120,64 Z"
+                            fill="#111" />
+                        <ellipse cx="164" cy="130" rx="10" ry="9" fill="#111" />
+                        <g class="briefcase-g" transform="translate(150,131) scale(1.8) translate(-150,-131)">
+                            <path d="M144,116 C144,111 147,109 150,109 C153,109 156,111 156,116" fill="none"
+                                stroke="#111" stroke-width="2" stroke-linecap="round" />
+                            <rect x="134" y="118" width="32" height="24" rx="2" ry="2" fill="#111" />
+                            <g class="briefcase-lid" style="transform-origin: 150px 142px;">
+                                <rect x="134" y="118" width="32" height="24" rx="2" ry="2" fill="#1a1a1a" />
+                                <rect x="147" y="117" width="6" height="3" rx="1" fill="#333" />
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+            <g class="leg-l" style="transform-origin:94px 142px;">
+                <path d="M84,140 C87,136 103,136 108,140 L112,186 C112,193 84,195 84,186 Z" fill="#111" />
+                <g class="shin-l" style="transform-origin:95px 188px;">
+                    <path d="M85,186 C85,182 110,182 110,186 L108,236 C108,242 88,242 88,236 Z" fill="#111" />
+                    <path d="M86,234 L106,248 C110,251 110,256 104,256 L76,256 C70,256 69,252 72,248 L78,236 Z"
+                        fill="#111" />
+                </g>
+            </g>
+            <g class="leg-r" style="transform-origin:112px 142px;">
+                <path d="M104,140 C107,136 123,136 128,140 L132,186 C132,193 102,195 102,186 Z" fill="#111" />
+                <g class="shin-r" style="transform-origin:113px 188px;">
+                    <path d="M103,186 C103,182 128,182 128,186 L126,236 C126,242 106,242 106,236 Z" fill="#111" />
+                    <path d="M106,234 L86,248 C82,251 82,256 88,256 L116,256 C122,256 123,252 120,248 L114,236 Z"
+                        fill="#111" />
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <script>
+        const OUT_SIZE = 400;
+
+        function getBBox(ctx, width, height) {
+            const data = ctx.getImageData(0, 0, width, height).data;
+            const bgR = data[0], bgG = data[1], bgB = data[2], bgA = data[3];
+            let minX = width, minY = height, maxX = 0, maxY = 0;
+            let found = false;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+
+                    let isOpaque = false;
+                    if (bgA < 10) { isOpaque = a > 10; }
+                    else {
+                        const isBg = (Math.abs(r - bgR) < 10 && Math.abs(g - bgG) < 10 && Math.abs(b - bgB) < 10);
+                        isOpaque = !isBg && a > 10;
+                    }
+
+                    if (isOpaque) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                        found = true;
+                    }
+                }
+            }
+            return found ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : null;
+        }
+
+        let logoDataFinal = null;
+        let logoH;
+
+        async function extractLogo() {
+            const logoImg = document.getElementById('logo-img');
+            const rawLogoCanvas = document.createElement('canvas');
+            rawLogoCanvas.width = logoImg.naturalWidth;
+            rawLogoCanvas.height = logoImg.naturalHeight;
+            const rawLogoCtx = rawLogoCanvas.getContext('2d', { willReadFrequently: true });
+
+            rawLogoCtx.drawImage(logoImg, 0, 0);
+            rawLogoCtx.clearRect(0, logoImg.naturalHeight * 0.88, logoImg.naturalWidth, logoImg.naturalHeight * 0.12);
+
+            const logoBBox = getBBox(rawLogoCtx, rawLogoCanvas.width, rawLogoCanvas.height);
+
+            const cLogo = document.getElementById('canvas-logo');
+            const ctxLogo = cLogo.getContext('2d', { willReadFrequently: true });
+
+            const scaleLogo = Math.min((OUT_SIZE * 0.8) / logoBBox.w, (OUT_SIZE * 0.8) / logoBBox.h);
+            const logoW = logoBBox.w * scaleLogo;
+            logoH = logoBBox.h * scaleLogo;
+            const logoOffX = (OUT_SIZE - logoW) / 2;
+            const logoOffY = (OUT_SIZE - logoH) / 2;
+
+            const logoData = rawLogoCtx.getImageData(logoBBox.x, logoBBox.y, logoBBox.w, logoBBox.h).data;
+            const tempCanvasLogo = document.createElement('canvas');
+            tempCanvasLogo.width = logoBBox.w; tempCanvasLogo.height = logoBBox.h;
+            const tCtxL = tempCanvasLogo.getContext('2d');
+            const tImgL = tCtxL.createImageData(logoBBox.w, logoBBox.h);
+
+            const bgData = rawLogoCtx.getImageData(0, 0, 1, 1).data;
+            const bgA = bgData[3], bgR = bgData[0], bgG = bgData[1], bgB = bgData[2];
+
+            for (let i = 0; i < logoData.length; i += 4) {
+                const r = logoData[i], g = logoData[i + 1], b = logoData[i + 2], a = logoData[i + 3];
+                let isOpaque = false;
+                if (bgA < 10) { isOpaque = a > 10; }
+                else {
+                    const isBg = (Math.abs(r - bgR) < 10 && Math.abs(g - bgG) < 10 && Math.abs(b - bgB) < 10);
+                    isOpaque = !isBg && a > 10;
+                }
+                if (isOpaque) { tImgL.data[i] = 255; tImgL.data[i + 1] = 0; tImgL.data[i + 2] = 0; tImgL.data[i + 3] = 255; }
+            }
+            tCtxL.putImageData(tImgL, 0, 0);
+            ctxLogo.drawImage(tempCanvasLogo, logoOffX, logoOffY, logoW, logoH);
+            logoDataFinal = ctxLogo.getImageData(0, 0, OUT_SIZE, OUT_SIZE).data;
+        }
+
+        async function updateSVG() {
+            if (!logoDataFinal) return;
+
+            const v = (id) => parseFloat(document.getElementById(id).value);
+
+            // update spans
+            ['torsoRot', 'armLRot', 'armRRot', 'legLRot', 'shinLRot', 'legRRot', 'shinRRot', 'scaleX', 'scaleY', 'offsetX', 'offsetY', 'caseScale'].forEach(id => {
+                document.getElementById(`val_${id}`).innerText = v(id);
+            });
+
+            const svgElem = document.getElementById('work-svg');
+            svgElem.querySelector('.torso').style.transform = `rotate(${v('torsoRot')}deg)`;
+            svgElem.querySelector('.arm-l').style.transform = `rotate(${v('armLRot')}deg)`;
+            svgElem.querySelector('.arm-r').style.transform = `rotate(${v('armRRot')}deg)`;
+            svgElem.querySelector('.leg-l').style.transform = `rotate(${v('legLRot')}deg)`;
+            svgElem.querySelector('.leg-r').style.transform = `rotate(${v('legRRot')}deg)`;
+            svgElem.querySelector('.shin-l').style.transform = `rotate(${v('shinLRot')}deg)`;
+            svgElem.querySelector('.shin-r').style.transform = `rotate(${v('shinRRot')}deg)`;
+            svgElem.querySelector('.briefcase-g').setAttribute('transform', `translate(150,131) scale(${v('caseScale')}) translate(-150,-131)`);
+
+            svgElem.style.transform = `scale(${v('scaleX')}, ${v('scaleY')})`;
+
+            const serialized = new XMLSerializer().serializeToString(svgElem);
+            const blob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const imgSvg = new Image();
+            await new Promise((resolve) => { imgSvg.onload = resolve; imgSvg.src = url; });
+            URL.revokeObjectURL(url);
+
+            const rawSvgCanvas = document.createElement('canvas');
+            rawSvgCanvas.width = 300; rawSvgCanvas.height = 500;
+            const rawSvgCtx = rawSvgCanvas.getContext('2d', { willReadFrequently: true });
+
+            rawSvgCtx.translate(150, 250);
+            rawSvgCtx.drawImage(imgSvg, -100, -170, 200, 340);
+            rawSvgCtx.translate(-150, -250);
+
+            const svgBBox = getBBox(rawSvgCtx, rawSvgCanvas.width, rawSvgCanvas.height);
+            if (!svgBBox) return;
+
+            const cSvg = document.getElementById('canvas-svg');
+            cSvg.width = OUT_SIZE; cSvg.height = OUT_SIZE;
+            const ctxSvg = cSvg.getContext('2d', { willReadFrequently: true });
+
+            const baseScale = logoH / svgBBox.h;
+            const svgW = svgBBox.w * baseScale;
+            const svgH = svgBBox.h * baseScale;
+            const svgOffX_Center = (OUT_SIZE - svgW) / 2 + v('offsetX');
+            const svgOffY_TrueCenter = (OUT_SIZE - svgH) / 2 + v('offsetY');
+
+            const tempCanvasSvg = document.createElement('canvas');
+            tempCanvasSvg.width = svgBBox.w; tempCanvasSvg.height = svgBBox.h;
+            const tCtxS = tempCanvasSvg.getContext('2d');
+            const svgDataMask = rawSvgCtx.getImageData(svgBBox.x, svgBBox.y, svgBBox.w, svgBBox.h).data;
+            const tImgS = tCtxS.createImageData(svgBBox.w, svgBBox.h);
+            for (let i = 0; i < svgDataMask.length; i += 4) {
+                if (svgDataMask[i + 3] > 10) { tImgS.data[i] = 0; tImgS.data[i + 1] = 0; tImgS.data[i + 2] = 255; tImgS.data[i + 3] = 255; }
+            }
+            tCtxS.putImageData(tImgS, 0, 0);
+            ctxSvg.drawImage(tempCanvasSvg, svgOffX_Center, svgOffY_TrueCenter, svgW, svgH);
+
+            const finalSvgData = ctxSvg.getImageData(0, 0, OUT_SIZE, OUT_SIZE).data;
+            const cDiff = document.getElementById('canvas-diff');
+            const ctxDiff = cDiff.getContext('2d', { willReadFrequently: true });
+            const finalDiffData = ctxDiff.createImageData(OUT_SIZE, OUT_SIZE);
+
+            let pLogo = 0, pSvg = 0, pOverlap = 0;
+
+            for (let i = 0; i < logoDataFinal.length; i += 4) {
+                const isL = logoDataFinal[i + 3] > 10;
+                const isS = finalSvgData[i + 3] > 10;
+                if (isL) pLogo++;
+                if (isS) pSvg++;
+                if (isL && isS) pOverlap++;
+
+                if (isL && isS) {
+                    finalDiffData.data[i] = 255; finalDiffData.data[i + 1] = 0; finalDiffData.data[i + 2] = 255; finalDiffData.data[i + 3] = 255;
+                } else if (isL) {
+                    finalDiffData.data[i] = 255; finalDiffData.data[i + 1] = 0; finalDiffData.data[i + 2] = 0; finalDiffData.data[i + 3] = 255;
+                } else if (isS) {
+                    finalDiffData.data[i] = 0; finalDiffData.data[i + 1] = 0; finalDiffData.data[i + 2] = 255; finalDiffData.data[i + 3] = 255;
+                } else {
+                    finalDiffData.data[i] = 255; finalDiffData.data[i + 1] = 255; finalDiffData.data[i + 2] = 255; finalDiffData.data[i + 3] = 255;
+                }
+            }
+            ctxDiff.putImageData(finalDiffData, 0, 0);
+
+            const union = pLogo + pSvg - pOverlap;
+            const overlapPct = (pOverlap / union) * 100;
+
+            document.getElementById('result').innerText = `Overlap Area % (Jaccard): ${overlapPct.toFixed(2)}%`;
+        }
+
+        window.onload = () => {
+            if (document.getElementById('logo-img').complete) {
+                extractLogo().then(updateSVG);
+            } else {
+                document.getElementById('logo-img').onload = () => extractLogo().then(updateSVG);
+            }
+        };
+    </script>
+</body>
+
+</html>

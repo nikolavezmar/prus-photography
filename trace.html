@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Logo Tracer</title>
+    <style>
+        body {
+            background: #222;
+            color: #fff;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        canvas {
+            border: 1px solid #555;
+        }
+
+        .info {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Logo Analysis — Bounding Boxes & Proportions</h2>
+    <canvas id="c" width="600" height="800"></canvas>
+    <div class="info" id="info"></div>
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+
+        const img = new Image();
+        img.onload = () => {
+            // Draw logo scaled up
+            const scale = Math.min(600 / img.width, 800 / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            ctx.drawImage(img, (600 - w) / 2, (800 - h) / 2, w, h);
+
+            // Now analyze the pixel data
+            const tmp = document.createElement('canvas');
+            tmp.width = img.width;
+            tmp.height = img.height;
+            const tctx = tmp.getContext('2d');
+            tctx.drawImage(img, 0, 0);
+            const data = tctx.getImageData(0, 0, img.width, img.height);
+
+            // Find body bounding box (exclude text)
+            const rowCounts = new Array(img.height).fill(0);
+            let allWhite = [];
+            for (let y = 0; y < img.height; y++) {
+                for (let x = 0; x < img.width; x++) {
+                    const i = (y * img.width + x) * 4;
+                    const brightness = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (brightness > 128) {
+                        rowCounts[y]++;
+                        allWhite.push({ x, y });
+                    }
+                }
+            }
+
+            // Find gap between body and text
+            const maxRow = Math.max(...rowCounts);
+            let bodyBottom = img.height;
+            const mid = Math.floor(img.height * 0.5);
+            for (let y = mid; y < img.height; y++) {
+                if (rowCounts[y] < maxRow * 0.05 && y > mid + 10) {
+                    bodyBottom = y;
+                    break;
+                }
+            }
+
+            // Body bounding box
+            let bx1 = img.width, by1 = img.height, bx2 = 0, by2 = 0;
+            for (const p of allWhite) {
+                if (p.y < bodyBottom) {
+                    if (p.x < bx1) bx1 = p.x;
+                    if (p.x > bx2) bx2 = p.x;
+                    if (p.y < by1) by1 = p.y;
+                    if (p.y > by2) by2 = p.y;
+                }
+            }
+
+            const bodyW = bx2 - bx1;
+            const bodyH = by2 - by1;
+
+            // Draw bounding box on canvas
+            ctx.strokeStyle = '#ff0';
+            ctx.lineWidth = 2;
+            const ox = (600 - w) / 2;
+            const oy = (800 - h) / 2;
+            ctx.strokeRect(
+                ox + bx1 * scale,
+                oy + by1 * scale,
+                bodyW * scale,
+                bodyH * scale
+            );
+
+            // Draw horizontal guide lines at key body proportions
+            const guides = [
+                { name: 'head top', y: by1 },
+                { name: 'head bottom (est)', y: by1 + bodyH * 0.13 },
+                { name: 'shoulders', y: by1 + bodyH * 0.18 },
+                { name: 'waist', y: by1 + bodyH * 0.42 },
+                { name: 'hips', y: by1 + bodyH * 0.45 },
+                { name: 'knees', y: by1 + bodyH * 0.68 },
+                { name: 'feet', y: by2 }
+            ];
+
+            ctx.font = '12px sans-serif';
+            guides.forEach(g => {
+                const screenY = oy + g.y * scale;
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, screenY);
+                ctx.lineTo(600, screenY);
+                ctx.stroke();
+                ctx.fillStyle = '#0ff';
+                ctx.fillText(g.name, 10, screenY - 3);
+            });
+
+            // Column analysis: find leftmost and rightmost white pixel per row (body only)
+            // to understand the silhouette contour
+            const contourLeft = [];
+            const contourRight = [];
+            for (let y = by1; y <= by2; y++) {
+                let left = img.width, right = 0;
+                for (let x = bx1; x <= bx2; x++) {
+                    const i = (y * img.width + x) * 4;
+                    const b = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (b > 128) {
+                        if (x < left) left = x;
+                        if (x > right) right = x;
+                    }
+                }
+                if (left < img.width) {
+                    contourLeft.push({ x: left, y });
+                    contourRight.push({ x: right, y });
+                }
+            }
+
+            // Draw contour
+            ctx.strokeStyle = '#f0f';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            contourLeft.forEach((p, i) => {
+                const sx = ox + p.x * scale;
+                const sy = oy + p.y * scale;
+                i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+            });
+            for (let i = contourRight.length - 1; i >= 0; i--) {
+                const p = contourRight[i];
+                ctx.lineTo(ox + p.x * scale, oy + p.y * scale);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Compute the aspect ratio and proportions
+            // Map to SVG viewBox 0 0 200 340
+            const SVG_W = 200;
+            const SVG_H = 340;
+            const scaleToSvg = Math.min(SVG_W / bodyW, SVG_H / bodyH);
+
+            // Head measurements
+            // Find horizontal extent at head level and neck level
+            function getWidthAtRow(row) {
+                let l = img.width, r = 0;
+                for (let x = bx1; x <= bx2; x++) {
+                    const i = (row * img.width + x) * 4;
+                    if ((data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3 > 128) {
+                        if (x < l) l = x;
+                        if (x > r) r = x;
+                    }
+                }
+                return { left: l, right: r, width: r - l };
+            }
+
+            const headRow = Math.round(by1 + bodyH * 0.06);
+            const shoulderRow = Math.round(by1 + bodyH * 0.18);
+            const waistRow = Math.round(by1 + bodyH * 0.42);
+            const hipRow = Math.round(by1 + bodyH * 0.45);
+
+            const headWidth = getWidthAtRow(headRow);
+            const shoulderWidth = getWidthAtRow(shoulderRow);
+            const waistWidth = getWidthAtRow(waistRow);
+            const hipWidth = getWidthAtRow(hipRow);
+
+            info.innerHTML = `
+        <b>Body Bounding Box:</b> ${bx1},${by1} → ${bx2},${by2} (${bodyW}×${bodyH}px)<br>
+        <b>Body Bottom Y:</b> ${bodyBottom}<br>
+        <b>Aspect Ratio (W/H):</b> ${(bodyW / bodyH).toFixed(3)}<br>
+        <b>SVG Scale Factor:</b> ${scaleToSvg.toFixed(4)}<br>
+        <br>
+        <b>Head width at ${headRow}:</b> ${headWidth.width}px (${(headWidth.left - bx1)}→${(headWidth.right - bx1)} from body left)<br>
+        <b>Shoulder width at ${shoulderRow}:</b> ${shoulderWidth.width}px<br>
+        <b>Waist width at ${waistRow}:</b> ${waistWidth.width}px<br>
+        <b>Hip width at ${hipRow}:</b> ${hipWidth.width}px<br>
+        <br>
+        <b>Head center X (relative to body):</b> ${((headWidth.left + headWidth.right) / 2 - bx1).toFixed(1)} of ${bodyW}<br>
+        <b>Shoulder center X:</b> ${((shoulderWidth.left + shoulderWidth.right) / 2 - bx1).toFixed(1)} of ${bodyW}<br>
+      `;
+        };
+        img.src = '/images/logo.png';
+    </script>
+</body>
+
+</html>

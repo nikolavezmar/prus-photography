@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            border: 1px solid #fff;
+            background: white;
+        }
+
+        .img-logo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0.2;
+        }
+
+        .svg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* FLIP ENTIRE SVG TO FACE RIGHT ALL THE TIME */
+        .man-svg {
+            height: 340px;
+            width: auto;
+            overflow: visible;
+            transform: scaleX(-1);
+        }
+
+        /* Fix arm-l to swing forward (in the original SVG space, forward is left, so positive rotation makes it go more left) and be visible */
+        .arm-l {
+            transform: rotate(15deg);
+        }
+
+        /* Rest of the original CSS pose */
+        .leg-l {
+            transform: rotate(38deg);
+        }
+
+        .shin-l {
+            transform: rotate(5deg);
+        }
+
+        .leg-r {
+            transform: rotate(-42deg);
+        }
+
+        .shin-r {
+            transform: rotate(30deg);
+        }
+
+        .arm-r {
+            transform: rotate(20deg);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <img src="./images/logo.png" class="img-logo" />
+
+        <div class="svg-container">
+            <svg viewBox="0 0 200 340" class="man-svg" xmlns="http://www.w3.org/2000/svg">
+                <g class="man-upper">
+                    <ellipse class="head" cx="105" cy="28" rx="18" ry="22" fill="#111" transform="rotate(5, 105, 28)" />
+                    <path d="M99,48 L111,48 L112,62 L98,62 Z" fill="#111" />
+                    <path d="M78,62 C82,58 96,55 106,55 C116,55 126,58 130,62
+            C134,70 135,82 134,94 C133,106 130,118 126,128
+            C122,136 116,142 108,144 C100,146 92,145 86,141
+            C80,137 76,131 74,124 C72,114 71,102 72,90
+            C73,78 75,68 78,62 Z" fill="#111" />
+                    <!-- Left Arm -->
+                    <g class="arm-l" style="transform-origin:84px 66px">
+                        <path d="M88,60 C84,62 74,72 64,86 C56,96 50,108 46,118
+              C42,128 44,134 50,132 C56,128 62,116 68,104
+              C76,88 82,74 88,66 L96,62 Z" fill="#111" />
+                        <ellipse cx="46" cy="126" rx="9" ry="8" fill="#111" />
+                    </g>
+                    <!-- Right Arm & Briefcase -->
+                    <g class="arm-r" style="transform-origin:124px 66px">
+                        <path d="M122,60 C124,62 130,70 136,80 C142,90 148,100 152,110
+              C156,118 160,126 160,130 C160,136 154,138 150,134
+              C146,128 142,118 136,106 C130,94 126,80 122,70 L114,64 Z" fill="#111" />
+                        <ellipse cx="158" cy="130" rx="8" ry="7" fill="#111" />
+                        <g class="briefcase-g" transform="translate(150,131) scale(1.8) translate(-150,-131)">
+                            <rect x="134" y="118" width="32" height="24" rx="2" ry="2" fill="#111" />
+                        </g>
+                    </g>
+                </g>
+                <!-- Left Leg (Back leg initially, if facing right) -->
+                <g class="leg-l" style="transform-origin:94px 142px">
+                    <path d="M84,140 C87,136 101,136 104,140 L108,186 C108,191 84,191 84,186 Z" fill="#111" />
+                    <g class="shin-l" style="transform-origin:95px 188px">
+                        <path d="M85,186 C85,182 107,182 107,186 L104,236 C104,240 88,240 88,236 Z" fill="#111" />
+                        <path d="M106,234 L86,248 C82,251 82,256 88,256 L116,256 C122,256 123,252 120,248 L114,236 Z"
+                            fill="#111" />
+                    </g>
+                </g>
+                <!-- Right Leg (Front leg initially) -->
+                <g class="leg-r" style="transform-origin:112px 142px">
+                    <path d="M104,140 C107,136 119,136 122,140 L126,186 C126,191 102,191 102,186 Z" fill="#111" />
+                    <g class="shin-r" style="transform-origin:113px 188px">
+                        <path d="M103,186 C103,182 125,182 125,186 L122,236 C122,240 106,240 106,236 Z" fill="#111" />
+                        <path d="M106,234 L86,248 C82,251 82,256 88,256 L116,256 C122,256 123,252 120,248 L114,236 Z"
+                            fill="#111" />
+                    </g>
+                </g>
+            </svg>
+        </div>
+    </div>
+</body>
+
+</html>

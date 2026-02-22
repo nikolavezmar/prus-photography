@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Logo Silhouette Auto-Tracer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #eee;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        canvas {
+            border: 1px solid #444;
+            margin: 10px;
+        }
+
+        .row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            background: #222;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-height: 600px;
+            overflow: auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        button:hover {
+            background: #66bb6a;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Logo Silhouette Auto-Tracer</h1>
+    <p>Extracts the contour of the logo body as an SVG path, fitted to a 200×340 viewBox.</p>
+    <div class="row">
+        <div>
+            <h3>Original Logo</h3>
+            <canvas id="logoCanvas" width="400" height="500"></canvas>
+        </div>
+        <div>
+            <h3>Extracted Contour (SVG viewport)</h3>
+            <canvas id="contourCanvas" width="400" height="680"></canvas>
+        </div>
+    </div>
+    <button id="traceBtn">Trace & Generate SVG Path</button>
+    <div id="output">Click "Trace" to generate...</div>
+
+    <script>
+        const THRESH = 128;
+
+        async function init() {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = '/images/logo.png';
+            await new Promise(r => img.onload = r);
+
+            // Draw logo
+            const lc = document.getElementById('logoCanvas');
+            const lctx = lc.getContext('2d');
+            const scale = Math.min(lc.width / img.naturalWidth, lc.height / img.naturalHeight);
+            const dw = img.naturalWidth * scale;
+            const dh = img.naturalHeight * scale;
+            lctx.drawImage(img, (lc.width - dw) / 2, (lc.height - dh) / 2, dw, dh);
+
+            document.getElementById('traceBtn').onclick = () => trace(img);
+        }
+
+        function trace(img) {
+            const out = document.getElementById('output');
+            out.textContent = 'Tracing...\n';
+
+            // Step 1: Get body-only pixels at native resolution
+            const tmp = document.createElement('canvas');
+            tmp.width = img.naturalWidth;
+            tmp.height = img.naturalHeight;
+            const ctx = tmp.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, tmp.width, tmp.height);
+
+            // Find body bounding box
+            const rowCounts = new Array(tmp.height).fill(0);
+            let minX = tmp.width, minY = tmp.height, maxX = 0, maxY = 0;
+            for (let y = 0; y < tmp.height; y++) {
+                for (let x = 0; x < tmp.width; x++) {
+                    const i = (y * tmp.width + x) * 4;
+                    const b = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (b > THRESH) {
+                        rowCounts[y]++;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // Find body-text gap
+            const midY = Math.floor((minY + maxY) / 2);
+            const maxRC = Math.max(...rowCounts);
+            let bodyBottom = maxY;
+            for (let y = midY; y <= maxY; y++) {
+                if (rowCounts[y] < maxRC * 0.05 && y > midY + 10) {
+                    bodyBottom = y;
+                    break;
+                }
+            }
+
+            // Recalculate body bounds
+            let bx1 = tmp.width, by1 = tmp.height, bx2 = 0, by2 = 0;
+            for (let y = minY; y <= bodyBottom; y++) {
+                for (let x = 0; x < tmp.width; x++) {
+                    const i = (y * tmp.width + x) * 4;
+                    const b = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (b > THRESH) {
+                        if (x < bx1) bx1 = x;
+                        if (x > bx2) bx2 = x;
+                        if (y < by1) by1 = y;
+                        if (y > by2) by2 = y;
+                    }
+                }
+            }
+
+            const bodyW = bx2 - bx1 + 1;
+            const bodyH = by2 - by1 + 1;
+            out.textContent += `Body bounds: (${bx1},${by1}) to (${bx2},${by2}), ${bodyW}×${bodyH}px\n`;
+            out.textContent += `Aspect ratio: ${(bodyW / bodyH).toFixed(3)}\n\n`;
+
+            // Step 2: Create a binary grid of the body at a working resolution
+            // Map to SVG coordinates (200×340 viewBox)
+            // The body should fill a reasonable portion of the viewBox
+            // Center it, leaving some margin
+            const SVG_W = 200, SVG_H = 340;
+            const svgScale = Math.min((SVG_W - 20) / bodyW, (SVG_H - 40) / bodyH);
+            const svgOffX = (SVG_W - bodyW * svgScale) / 2;
+            const svgOffY = 10; // small top margin for head
+
+            out.textContent += `SVG scale: ${svgScale.toFixed(4)}\n`;
+            out.textContent += `SVG offset: (${svgOffX.toFixed(1)}, ${svgOffY})\n\n`;
+
+            // Create a binary image in SVG space
+            const grid = new Uint8Array(SVG_W * SVG_H);
+            for (let y = by1; y <= by2; y++) {
+                for (let x = bx1; x <= bx2; x++) {
+                    const i = (y * tmp.width + x) * 4;
+                    const b = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (b > THRESH) {
+                        const sx = Math.round((x - bx1) * svgScale + svgOffX);
+                        const sy = Math.round((y - by1) * svgScale + svgOffY);
+                        if (sx >= 0 && sx < SVG_W && sy >= 0 && sy < SVG_H) {
+                            grid[sy * SVG_W + sx] = 1;
+                        }
+                    }
+                }
+            }
+
+            // Fill gaps in the grid (morphological close)
+            const filled = new Uint8Array(grid);
+            for (let y = 1; y < SVG_H - 1; y++) {
+                for (let x = 1; x < SVG_W - 1; x++) {
+                    if (!grid[y * SVG_W + x]) {
+                        let neighbors = 0;
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (grid[(y + dy) * SVG_W + (x + dx)]) neighbors++;
+                            }
+                        }
+                        if (neighbors >= 5) filled[y * SVG_W + x] = 1;
+                    }
+                }
+            }
+
+            // Step 3: Extract left and right contour at each row
+            const leftContour = [];
+            const rightContour = [];
+            for (let y = 0; y < SVG_H; y++) {
+                let leftX = -1, rightX = -1;
+                for (let x = 0; x < SVG_W; x++) {
+                    if (filled[y * SVG_W + x]) {
+                        if (leftX === -1) leftX = x;
+                        rightX = x;
+                    }
+                }
+                if (leftX !== -1) {
+                    leftContour.push({ x: leftX, y });
+                    rightContour.push({ x: rightX, y });
+                }
+            }
+
+            if (leftContour.length === 0) {
+                out.textContent += 'ERROR: No contour found!\n';
+                return;
+            }
+
+            out.textContent += `Contour rows: ${leftContour.length}\n`;
+            out.textContent += `Top: y=${leftContour[0].y}, Bottom: y=${leftContour[leftContour.length - 1].y}\n\n`;
+
+            // Step 4: Simplify contour using Ramer-Douglas-Peucker
+            function rdp(points, epsilon) {
+                if (points.length <= 2) return points;
+                let dmax = 0, idx = 0;
+                const first = points[0], last = points[points.length - 1];
+                for (let i = 1; i < points.length - 1; i++) {
+                    const d = perpDist(points[i], first, last);
+                    if (d > dmax) { dmax = d; idx = i; }
+                }
+                if (dmax > epsilon) {
+                    const left = rdp(points.slice(0, idx + 1), epsilon);
+                    const right = rdp(points.slice(idx), epsilon);
+                    return left.slice(0, -1).concat(right);
+                }
+                return [first, last];
+            }
+
+            function perpDist(p, a, b) {
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+                return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+            }
+
+            // Build full contour: left side down, right side up (clockwise)
+            const fullContour = leftContour.concat(rightContour.reverse());
+            const simplified = rdp(fullContour, 2);
+
+            out.textContent += `Full contour points: ${fullContour.length}\n`;
+            out.textContent += `Simplified points: ${simplified.length}\n\n`;
+
+            // Step 5: Generate SVG path
+            let svgPath = `M${simplified[0].x},${simplified[0].y}`;
+            for (let i = 1; i < simplified.length; i++) {
+                svgPath += ` L${simplified[i].x},${simplified[i].y}`;
+            }
+            svgPath += ' Z';
+
+            out.textContent += `=== SVG PATH (single solid silhouette) ===\n`;
+            out.textContent += `<path d="${svgPath}" fill="#111" />\n\n`;
+
+            // Also generate a smoother version using cubic bezier approximation
+            let smoothPath = `M${simplified[0].x},${simplified[0].y}`;
+            for (let i = 1; i < simplified.length; i++) {
+                const prev = simplified[i - 1];
+                const curr = simplified[i];
+                const next = simplified[(i + 1) % simplified.length];
+                // Simple cubic bezier through midpoints
+                const cx1 = prev.x + (curr.x - prev.x) * 0.5;
+                const cy1 = prev.y + (curr.y - prev.y) * 0.5;
+                smoothPath += ` Q${curr.x},${curr.y} ${(curr.x + next.x) / 2},${(curr.y + next.y) / 2}`;
+            }
+            smoothPath += ' Z';
+
+            out.textContent += `=== SMOOTH SVG PATH (quadratic bezier) ===\n`;
+            out.textContent += `<path d="${smoothPath}" fill="#111" />\n\n`;
+
+            // Step 6: Draw contour on canvas
+            const cc = document.getElementById('contourCanvas');
+            const cctx = cc.getContext('2d');
+            const canvasScale = cc.width / SVG_W;
+            cctx.fillStyle = '#000';
+            cctx.fillRect(0, 0, cc.width, cc.height);
+
+            // Draw filled body
+            cctx.fillStyle = 'rgba(255,255,255,0.3)';
+            for (let y = 0; y < SVG_H; y++) {
+                for (let x = 0; x < SVG_W; x++) {
+                    if (filled[y * SVG_W + x]) {
+                        cctx.fillRect(x * canvasScale, y * canvasScale, canvasScale, canvasScale);
+                    }
+                }
+            }
+
+            // Draw contour
+            cctx.strokeStyle = '#4caf50';
+            cctx.lineWidth = 2;
+            cctx.beginPath();
+            cctx.moveTo(simplified[0].x * canvasScale, simplified[0].y * canvasScale);
+            for (let i = 1; i < simplified.length; i++) {
+                cctx.lineTo(simplified[i].x * canvasScale, simplified[i].y * canvasScale);
+            }
+            cctx.closePath();
+            cctx.stroke();
+
+            // Draw points
+            cctx.fillStyle = '#f44336';
+            for (const p of simplified) {
+                cctx.beginPath();
+                cctx.arc(p.x * canvasScale, p.y * canvasScale, 3, 0, Math.PI * 2);
+                cctx.fill();
+            }
+
+            // Key proportions: mark head top, shoulder line, waist, hips, knees
+            const headTop = leftContour[0].y;
+            const headBottom = leftContour[0].y;
+            const totalH = leftContour[leftContour.length - 1].y - leftContour[0].y;
+
+            // Find widest point (shoulder region ~15-25% down)
+            let maxWidth = 0, shoulderY = 0;
+            for (let i = 0; i < leftContour.length; i++) {
+                const w = rightContour[rightContour.length - 1 - i].x - leftContour[i].x;
+                if (w > maxWidth && leftContour[i].y > headTop + totalH * 0.1 && leftContour[i].y < headTop + totalH * 0.35) {
+                    maxWidth = w;
+                    shoulderY = leftContour[i].y;
+                }
+            }
+
+            out.textContent += `=== KEY PROPORTIONS ===\n`;
+            out.textContent += `Head top: y=${headTop}\n`;
+            out.textContent += `Shoulder widest at: y=${shoulderY}, width=${maxWidth}\n`;
+            out.textContent += `Total height: ${totalH}\n`;
+            out.textContent += `Body aspect ratio in SVG: ${((rightContour[0].x - leftContour[0].x) / totalH).toFixed(3)}\n`;
+
+            // Now output the SVG path flipped for scaleX(-1) context
+            // In the actual page, the SVG is flipped with scaleX(-1)
+            // So we need to mirror the path: x → (SVG_W - x)
+            let flippedPath = `M${SVG_W - simplified[0].x},${simplified[0].y}`;
+            for (let i = 1; i < simplified.length; i++) {
+                flippedPath += ` L${SVG_W - simplified[i].x},${simplified[i].y}`;
+            }
+            flippedPath += ' Z';
+
+            out.textContent += `\n=== FLIPPED SVG PATH (for scaleX(-1) context) ===\n`;
+            out.textContent += `<path d="${flippedPath}" fill="#111" />\n`;
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

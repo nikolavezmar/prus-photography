@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Logo → SVG Path Converter (Marching Squares)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #eee;
+            padding: 20px;
+        }
+
+        canvas {
+            border: 1px solid #444;
+            margin: 10px;
+        }
+
+        .row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            background: #222;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-size: 11px;
+            max-height: 600px;
+            overflow: auto;
+            user-select: all;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 5px;
+        }
+
+        h3 {
+            margin-top: 15px;
+        }
+
+        .preview-svg {
+            border: 1px solid #4caf50;
+            background: #000;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Logo → SVG Path (Proper Contour Tracing)</h1>
+    <p>Uses flood fill to find connected components, then traces each boundary to produce clean SVG paths.</p>
+    <div class="row">
+        <div>
+            <h3>Original Logo</h3>
+            <canvas id="logoCanvas" width="400" height="400"></canvas>
+        </div>
+        <div>
+            <h3>Traced Paths Preview (in SVG viewBox 200×340)</h3>
+            <svg id="previewSvg" viewBox="0 0 200 340" class="preview-svg" width="300" height="510"
+                xmlns="http://www.w3.org/2000/svg" style="background:#000;">
+            </svg>
+        </div>
+    </div>
+    <button id="traceBtn">Trace Logo</button>
+    <div id="output">Click "Trace Logo" to generate SVG paths...</div>
+
+    <script>
+        const THRESH = 128;
+        const SVG_W = 200, SVG_H = 340;
+
+        async function init() {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = '/images/logo.png';
+            await new Promise(r => img.onload = r);
+
+            const lc = document.getElementById('logoCanvas');
+            const lctx = lc.getContext('2d');
+            const scale = Math.min(lc.width / img.naturalWidth, lc.height / img.naturalHeight);
+            lctx.drawImage(img, (lc.width - img.naturalWidth * scale) / 2,
+                (lc.height - img.naturalHeight * scale) / 2,
+                img.naturalWidth * scale, img.naturalHeight * scale);
+
+            document.getElementById('traceBtn').onclick = () => trace(img);
+        }
+
+        function trace(img) {
+            const out = document.getElementById('output');
+            out.textContent = 'Tracing...\n';
+
+            // Step 1: Extract body mask at native resolution
+            const tmp = document.createElement('canvas');
+            const W = img.naturalWidth, H = img.naturalHeight;
+            tmp.width = W; tmp.height = H;
+            const ctx = tmp.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, W, H);
+
+            // Find all white pixels
+            const mask = new Uint8Array(W * H);
+            let minX = W, minY = H, maxX = 0, maxY = 0;
+            const rowCounts = new Array(H).fill(0);
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    const i = (y * W + x) * 4;
+                    const b = (data.data[i] + data.data[i + 1] + data.data[i + 2]) / 3;
+                    if (b > THRESH) {
+                        mask[y * W + x] = 1;
+                        rowCounts[y]++;
+                        if (x < minX) minX = x; if (x > maxX) maxX = x;
+                        if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // Find gap between body and text
+            const midY = Math.floor((minY + maxY) / 2);
+            const maxRC = Math.max(...rowCounts);
+            let bodyBottom = maxY;
+            for (let y = midY; y <= maxY; y++) {
+                if (rowCounts[y] < maxRC * 0.05 && y > midY + 10) {
+                    bodyBottom = y; break;
+                }
+            }
+
+            // Clear everything below body
+            for (let y = bodyBottom + 1; y < H; y++) {
+                for (let x = 0; x < W; x++) mask[y * W + x] = 0;
+            }
+
+            // Recalc body bounds
+            let bx1 = W, by1 = H, bx2 = 0, by2 = 0;
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    if (mask[y * W + x]) {
+                        if (x < bx1) bx1 = x; if (x > bx2) bx2 = x;
+                        if (y < by1) by1 = y; if (y > by2) by2 = y;
+                    }
+                }
+            }
+            const bodyW = bx2 - bx1 + 1, bodyH = by2 - by1 + 1;
+            out.textContent += `Body: (${bx1},${by1})-(${bx2},${by2}) = ${bodyW}×${bodyH}\n`;
+
+            // Step 2: Map to SVG coordinates with margins
+            const svgScale = Math.min((SVG_W - 10) / bodyW, (SVG_H - 20) / bodyH);
+            const svgOffX = (SVG_W - bodyW * svgScale) / 2;
+            const svgOffY = 10;
+
+            function toSvg(px, py) {
+                return {
+                    x: Math.round(((px - bx1) * svgScale + svgOffX) * 10) / 10,
+                    y: Math.round(((py - by1) * svgScale + svgOffY) * 10) / 10
+                };
+            }
+
+            out.textContent += `SVG scale: ${svgScale.toFixed(4)}, offset: (${svgOffX.toFixed(1)}, ${svgOffY})\n\n`;
+
+            // Step 3: Find connected components using flood fill
+            const visited = new Uint8Array(W * H);
+            const components = [];
+
+            function floodFill(startX, startY) {
+                const pixels = [];
+                const stack = [[startX, startY]];
+                while (stack.length > 0) {
+                    const [x, y] = stack.pop();
+                    if (x < 0 || x >= W || y < 0 || y >= H) continue;
+                    const idx = y * W + x;
+                    if (visited[idx] || !mask[idx]) continue;
+                    visited[idx] = 1;
+                    pixels.push([x, y]);
+                    stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
+                }
+                return pixels;
+            }
+
+            for (let y = by1; y <= by2; y++) {
+                for (let x = bx1; x <= bx2; x++) {
+                    if (mask[y * W + x] && !visited[y * W + x]) {
+                        const component = floodFill(x, y);
+                        if (component.length > 20) { // Filter noise
+                            components.push(component);
+                        }
+                    }
+                }
+            }
+
+            out.textContent += `Found ${components.length} connected component(s)\n`;
+            components.sort((a, b) => b.length - a.length); // Largest first
+
+            // Step 4: For each component, trace its boundary
+            const allPaths = [];
+
+            for (let ci = 0; ci < components.length; ci++) {
+                const comp = components[ci];
+                out.textContent += `\nComponent ${ci}: ${comp.length} pixels\n`;
+
+                // Create a local mask for this component
+                const compSet = new Set();
+                let cMinX = W, cMinY = H, cMaxX = 0, cMaxY = 0;
+                for (const [x, y] of comp) {
+                    compSet.add(y * W + x);
+                    if (x < cMinX) cMinX = x; if (x > cMaxX) cMaxX = x;
+                    if (y < cMinY) cMinY = y; if (y > cMaxY) cMaxY = y;
+                }
+
+                // Trace boundary: walk around the edge of the component
+                const boundary = traceBoundary(compSet, cMinX, cMinY, cMaxX, cMaxY, W);
+
+                if (boundary.length < 3) {
+                    out.textContent += `  Skipping: too few boundary points\n`;
+                    continue;
+                }
+
+                // Convert boundary pixels to SVG coordinates
+                const svgPoints = boundary.map(([x, y]) => toSvg(x, y));
+
+                // Simplify using RDP
+                const simplified = rdp(svgPoints, 1.5);
+                out.textContent += `  Boundary: ${boundary.length} → simplified: ${simplified.length} points\n`;
+
+                // Generate SVG path
+                let pathD = `M${simplified[0].x},${simplified[0].y}`;
+                for (let i = 1; i < simplified.length; i++) {
+                    pathD += ` L${simplified[i].x},${simplified[i].y}`;
+                }
+                pathD += ' Z';
+
+                allPaths.push({ d: pathD, points: simplified.length, pixels: comp.length });
+            }
+
+            // Step 5: Output results
+            out.textContent += `\n${'='.repeat(60)}\n`;
+            out.textContent += `SVG PATHS (for viewBox="0 0 200 340")\n`;
+            out.textContent += `${'='.repeat(60)}\n\n`;
+
+            // Combined single path
+            const combinedD = allPaths.map(p => p.d).join(' ');
+            out.textContent += `<!-- Combined path (all components) -->\n`;
+            out.textContent += `<path d="${combinedD}" fill="#111" />\n\n`;
+
+            // Individual paths
+            for (let i = 0; i < allPaths.length; i++) {
+                out.textContent += `<!-- Component ${i} (${allPaths[i].pixels}px, ${allPaths[i].points} pts) -->\n`;
+                out.textContent += `<path d="${allPaths[i].d}" fill="#111" />\n\n`;
+            }
+
+            // Flipped version (for scaleX(-1) context)
+            const flippedD = allPaths.map(p => {
+                return p.d.replace(/(\d+\.?\d*),(\d+\.?\d*)/g, (m, x, y) => {
+                    return `${(SVG_W - parseFloat(x)).toFixed(1)},${y}`;
+                });
+            }).join(' ');
+            out.textContent += `\n<!-- FLIPPED (for scaleX(-1) context) -->\n`;
+            out.textContent += `<path d="${flippedD}" fill="#111" />\n`;
+
+            // Step 6: Display preview
+            const preview = document.getElementById('previewSvg');
+            preview.innerHTML = '';
+            for (const p of allPaths) {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', p.d);
+                pathEl.setAttribute('fill', 'white');
+                preview.appendChild(pathEl);
+            }
+        }
+
+        // Trace the boundary of a set of pixels using the square tracing algorithm
+        function traceBoundary(pixelSet, minX, minY, maxX, maxY, W) {
+            // Find starting point: top-left boundary pixel
+            let startX, startY;
+            outer: for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    if (pixelSet.has(y * W + x)) {
+                        startX = x; startY = y;
+                        break outer;
+                    }
+                }
+            }
+
+            const boundary = [];
+            const dirX = [0, 1, 0, -1]; // down, right, up, left
+            const dirY = [1, 0, -1, 0];
+
+            let x = startX, y = startY;
+            let dir = 3; // Start going left (we enter from the left of top-left pixel)
+            const maxSteps = (maxX - minX + maxY - minY + 2) * 4;
+
+            for (let step = 0; step < maxSteps; step++) {
+                boundary.push([x, y]);
+
+                // Try to turn right first (clockwise), then straight, then left, then back
+                let found = false;
+                for (let turn = -1; turn <= 2; turn++) {
+                    const newDir = (dir + turn + 4) % 4;
+                    const nx = x + dirX[newDir];
+                    const ny = y + dirY[newDir];
+                    if (pixelSet.has(ny * W + nx)) {
+                        x = nx; y = ny;
+                        dir = newDir;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found || (x === startX && y === startY && step > 0)) break;
+            }
+
+            // Remove duplicates and subsample for smoother path
+            const unique = [];
+            const seen = new Set();
+            for (const [px, py] of boundary) {
+                const key = px + ',' + py;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    unique.push([px, py]);
+                }
+            }
+
+            return unique;
+        }
+
+        // Ramer-Douglas-Peucker simplification
+        function rdp(points, epsilon) {
+            if (points.length <= 2) return points;
+            let dmax = 0, idx = 0;
+            const first = points[0], last = points[points.length - 1];
+            for (let i = 1; i < points.length - 1; i++) {
+                const d = perpDist(points[i], first, last);
+                if (d > dmax) { dmax = d; idx = i; }
+            }
+            if (dmax > epsilon) {
+                const left = rdp(points.slice(0, idx + 1), epsilon);
+                const right = rdp(points.slice(idx), epsilon);
+                return left.slice(0, -1).concat(right);
+            }
+            return [first, last];
+        }
+
+        function perpDist(p, a, b) {
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len === 0) return Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+            return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

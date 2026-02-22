@@ -1,0 +1,1282 @@
+/* ================================================
+   PRUS PHOTOGRAPHY — Design System
+   ================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1a1a1a;
+  --bg-card: #111;
+  --text-primary: #f5f5f5;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666;
+  --accent: #fff;
+  --accent-dim: rgba(255, 255, 255, .08);
+  --accent-glow: rgba(255, 255, 255, .15);
+  --border-color: rgba(255, 255, 255, .1);
+  --border-hover: rgba(255, 255, 255, .25);
+  --overlay: rgba(0, 0, 0, .85);
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --space-xs: .25rem;
+  --space-sm: .5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+  --space-3xl: 8rem;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --transition-fast: .2s var(--ease-out);
+  --transition-med: .4s var(--ease-out);
+  --transition-slow: .8s var(--ease-out);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --container-max: 1400px;
+  --nav-height: 70px;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden
+}
+
+a {
+  color: inherit;
+  text-decoration: none
+}
+
+img {
+  display: block;
+  max-width: 100%
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit
+}
+
+ul,
+ol {
+  list-style: none
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  letter-spacing: .02em;
+  line-height: 1.2
+}
+
+h1 {
+  font-size: clamp(2.5rem, 6vw, 5rem)
+}
+
+h2 {
+  font-size: clamp(2rem, 4vw, 3.5rem)
+}
+
+h3 {
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem)
+}
+
+.text-serif {
+  font-family: var(--font-serif)
+}
+
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  font-size: .75rem;
+  font-weight: 500
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-lg)
+}
+
+/* ================================================
+   INTRO SCENE
+   ================================================ */
+.intro-scene {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: #fff;
+  overflow: hidden
+}
+
+/* ------------------------------------------------
+/* ------------------------------------------------
+   SVG MAN + TEXT = THE LOGO
+   Visible from frame 0. No transitions. No swaps.
+   This IS the logo.
+   ------------------------------------------------ */
+.man-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Ensure container doesn't clip the bounce */
+  height: 400px;
+  width: 300px;
+  pointer-events: none;
+}
+
+.man-svg {
+  height: 340px;
+  /* Matches viewBox height */
+  width: auto;
+  overflow: visible;
+  transform: scaleX(-1);
+}
+
+/* Logo text — fixed position, independent of man's movement */
+.logo-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 24;
+  /* Behind man slightly */
+  margin-top: 130px;
+  /* Positioned below the man's initial spot */
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: .22em;
+  color: #111;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.logo-text.fade-out {
+  opacity: 0;
+}
+
+/* Logo Text Blowing Away — animated by JS for true circular swirl */
+.logo-text.blown {
+  z-index: 1000;
+  will-change: transform, top, left;
+}
+
+/* WALKING — man runs off screen with BOUNCE */
+.man-container.walking {
+  animation: manRunOff 4s cubic-bezier(0.12, 0, 0.39, 0) forwards;
+  will-change: left;
+  /* LINGER 2s */
+}
+
+
+@keyframes manRunOff {
+  0% {
+    left: 50%;
+  }
+
+  100% {
+    left: 150%;
+  }
+}
+
+/* ------------------------------------------------
+   RUNNING CYCLE — 0.7s per stride (Natural gait)
+   Phases: Contact → Midstance → Toe-off → Swing → Recovery
+   ------------------------------------------------ */
+
+/* Upper body — subtle vertical bob + lean variation */
+.man-container.walking .man-upper {
+  animation: upperBob 0.7s ease-in-out infinite;
+  transform-origin: 105px 140px;
+}
+
+.man-upper {
+  transition: transform 0.3s ease;
+  transform-origin: 105px 140px;
+  transform: rotate(10deg);
+  /* Forward lean to match logo's walking posture */
+}
+
+/* Static linger pose — matching logo's stride and arm positions */
+.leg-l {
+  transform: rotate(38deg);
+  /* Front leg forward stride */
+}
+
+.leg-r {
+  transform: rotate(-40deg);
+  /* Back leg rear stride */
+}
+
+.shin-l {
+  transform: rotate(8deg);
+}
+
+.shin-r {
+  transform: rotate(25deg);
+}
+
+.arm-l {
+  transform: rotate(12deg);
+  /* Trailing arm with bag */
+}
+
+.arm-r {
+  transform: rotate(15deg);
+  /* Front arm */
+}
+
+@keyframes upperBob {
+  0% {
+    transform: translateY(0px) rotate(6deg);
+  }
+
+  /* L heel-strike */
+  12% {
+    transform: translateY(3px) rotate(5deg);
+  }
+
+  /* Loading — slight dip */
+  25% {
+    transform: translateY(-2px) rotate(7deg);
+  }
+
+  /* Midstance — slight rise */
+  37% {
+    transform: translateY(-4px) rotate(8deg);
+  }
+
+  /* Toe-off — highest point */
+  50% {
+    transform: translateY(0px) rotate(6deg);
+  }
+
+  /* R heel-strike (mirror) */
+  62% {
+    transform: translateY(3px) rotate(5deg);
+  }
+
+  /* Loading */
+  75% {
+    transform: translateY(-2px) rotate(7deg);
+  }
+
+  /* Midstance */
+  87% {
+    transform: translateY(-4px) rotate(8deg);
+  }
+
+  /* Toe-off */
+  100% {
+    transform: translateY(0px) rotate(6deg);
+  }
+
+  /* Cycle */
+}
+
+/* Briefcase — visible from frame zero (matches logo) */
+
+/* Briefcase Lid — full clamshell, hinged at bottom edge */
+.briefcase-lid {
+  /* transform-origin set inline in SVG */
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.briefcase-lid.open {
+  transform: rotate(180deg);
+  /* Fully swings open flat from bottom hinge */
+}
+
+/* --- LEGS & ARMS (Natural Biomechanical Run) --- */
+/* Gait cycle: heel-strike → loading → midstance → toe-off → swing → recovery */
+
+/* Left Leg — thigh */
+.leg-l {
+  transform: rotate(32deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .leg-l {
+  animation: legL 0.7s ease-in-out infinite;
+}
+
+@keyframes legL {
+  0% {
+    transform: rotate(35deg);
+  }
+
+  25% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-35deg);
+  }
+
+  75% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(35deg);
+  }
+}
+
+/* Left shin — knee flexion */
+.shin-l {
+  transform: rotate(8deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .shin-l {
+  animation: shinL 0.7s ease-in-out infinite;
+}
+
+@keyframes shinL {
+  0% {
+    transform: rotate(5deg);
+  }
+
+  25% {
+    transform: rotate(85deg);
+  }
+
+  50% {
+    transform: rotate(5deg);
+  }
+
+  75% {
+    transform: rotate(15deg);
+  }
+
+  100% {
+    transform: rotate(5deg);
+  }
+}
+
+/* Right Leg — thigh (180° out of phase from left) */
+.leg-r {
+  transform: rotate(-35deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .leg-r {
+  animation: legR 0.7s ease-in-out infinite;
+}
+
+@keyframes legR {
+  0% {
+    transform: rotate(-35deg);
+  }
+
+  25% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(35deg);
+  }
+
+  75% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(-35deg);
+  }
+}
+
+/* Right shin — knee flexion (180° out of phase) */
+.shin-r {
+  transform: rotate(25deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .shin-r {
+  animation: shinR 0.7s ease-in-out infinite;
+}
+
+@keyframes shinR {
+  0% {
+    transform: rotate(5deg);
+  }
+
+  25% {
+    transform: rotate(15deg);
+  }
+
+  50% {
+    transform: rotate(5deg);
+  }
+
+  75% {
+    transform: rotate(85deg);
+  }
+
+  100% {
+    transform: rotate(5deg);
+  }
+}
+
+/* Left Arm — extended away from body, visible like logo */
+.arm-l {
+  transform: rotate(12deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .arm-l {
+  animation: armL 0.7s ease-in-out infinite;
+}
+
+@keyframes armL {
+  0% {
+    transform: rotate(-30deg);
+  }
+
+  50% {
+    transform: rotate(30deg);
+  }
+
+  100% {
+    transform: rotate(-30deg);
+  }
+}
+
+/* Right Arm — forward with briefcase, matching logo */
+.arm-r {
+  transform: rotate(15deg);
+}
+
+/* Static: matches logo stride */
+
+.man-container.walking .arm-r {
+  animation: armR 0.7s ease-in-out infinite;
+}
+
+@keyframes armR {
+  0% {
+    transform: rotate(30deg);
+  }
+
+  50% {
+    transform: rotate(-10deg);
+  }
+
+  100% {
+    transform: rotate(30deg);
+  }
+}
+
+/* ================================================
+   PAPERS (ground → wind → final cards)
+   ================================================ */
+.papers-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  /* Behind man but in front of background */
+  pointer-events: none;
+}
+
+.anim-paper {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  pointer-events: none;
+  /* Default white crumpled look */
+  background: #f8f8f8;
+  border: 1.5px solid #111;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Crumpled paper on ground — White/Off-white, not dark */
+.anim-paper.grounded {
+  background: linear-gradient(135deg, #fff 0%, #eee 50%, #e0e0e0 100%) !important;
+  box-shadow:
+    inset 0 0 2px rgba(0, 0, 0, 0.1),
+    1px 2px 4px rgba(0, 0, 0, 0.15);
+  border: 1.5px solid #111;
+}
+
+/* Bounce Animation — 3 diminishing bounces for realistic physics */
+@keyframes paperBounceHit {
+  0% {
+    transform: translateY(0) translateX(0) scale(1) rotate(var(--r));
+    animation-timing-function: cubic-bezier(0.33, 0, 0.67, 0);
+  }
+
+  16% {
+    transform: translateY(-35px) translateX(4px) scale(0.92) rotate(calc(var(--r) + 15deg));
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  32% {
+    transform: translateY(0) translateX(8px) scale(1.05) rotate(calc(var(--r) + 8deg));
+    animation-timing-function: cubic-bezier(0.33, 0, 0.67, 0);
+  }
+
+  46% {
+    transform: translateY(-18px) translateX(11px) scale(0.95) rotate(calc(var(--r) - 10deg));
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  60% {
+    transform: translateY(0) translateX(13px) scale(1.02) rotate(calc(var(--r) - 5deg));
+    animation-timing-function: cubic-bezier(0.33, 0, 0.67, 0);
+  }
+
+  74% {
+    transform: translateY(-6px) translateX(14px) scale(0.98) rotate(calc(var(--r) + 3deg));
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  88% {
+    transform: translateY(0) translateX(15px) scale(1) rotate(var(--r));
+  }
+
+  100% {
+    transform: translateY(0) translateX(15px) scale(1) rotate(var(--r));
+  }
+}
+
+.anim-paper.final {
+  pointer-events: auto;
+  cursor: pointer;
+  background: #f5f0e8 !important;
+  border: 2px solid #111 !important;
+  box-shadow: 3px 3px 0 #111;
+}
+
+.anim-paper.final::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(225deg, #fff 50%, #e0dbd3 50%);
+  border-bottom-left-radius: 4px;
+  border-left: 2px solid #111;
+  border-bottom: 2px solid #111;
+}
+
+.paper-inner {
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: .8rem;
+}
+
+.anim-paper.transitioning .paper-inner {
+  opacity: 0;
+}
+
+.anim-paper.final .paper-inner {
+  opacity: 1;
+  transition: opacity .5s ease .2s;
+}
+
+.paper-number {
+  font-family: var(--font-serif);
+  font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+  font-weight: 300;
+  color: rgba(0, 0, 0, .07);
+  line-height: 1;
+  margin-bottom: .2rem;
+}
+
+.paper-title {
+  font-family: var(--font-serif);
+  font-size: clamp(.85rem, 1.5vw, 1.2rem);
+  font-weight: 400;
+  color: #111;
+  letter-spacing: .04em;
+}
+
+.paper-desc {
+  font-family: var(--font-sans);
+  font-size: .6rem;
+  color: #999;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-top: .2rem;
+}
+
+.anim-paper.final:hover {
+  box-shadow: 5px 5px 0 #111;
+  transform: translateY(-4px) rotate(0deg) !important;
+}
+
+/* ================================================
+   WIND SWIRLS
+   ================================================ */
+.wind-container {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+
+.wind-container.visible {
+  opacity: 1;
+}
+
+.wind-container.fade-out {
+  opacity: 0;
+}
+
+.wind-swirl {
+  position: absolute;
+  opacity: 0;
+}
+
+.wind-swirl.active {
+  animation: windSwoosh var(--ws-dur, 1s) cubic-bezier(.4, 0, .2, 1) var(--ws-delay, 0s) forwards;
+}
+
+@keyframes windSwoosh {
+  0% {
+    opacity: 0;
+    transform: translateX(70vw) scaleX(.3);
+  }
+
+  20% {
+    opacity: .5;
+  }
+
+  60% {
+    opacity: .3;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-20vw) scaleX(1.4);
+  }
+}
+
+/* ================================================
+   FOOTER (home)
+   ================================================ */
+.home-footer {
+  background: #fff;
+  border-top: 1px solid #e0e0e0
+}
+
+/* ================================================
+   NAVIGATION
+   ================================================ */
+.main-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  z-index: 1000;
+  background: rgba(10, 10, 10, .8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-color);
+  opacity: 0;
+  transform: translateY(-100%);
+  transition: opacity .6s var(--ease-out), transform .6s var(--ease-out)
+}
+
+.main-nav.visible {
+  opacity: 1;
+  transform: translateY(0)
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-lg)
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm)
+}
+
+.nav-logo img {
+  height: 40px;
+  width: auto
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-xl);
+  align-items: center
+}
+
+.nav-links a {
+  font-size: .8rem;
+  font-weight: 400;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  position: relative;
+  padding: var(--space-xs) 0;
+  transition: color var(--transition-fast)
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--accent);
+  transition: width var(--transition-med)
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+  color: var(--text-primary)
+}
+
+.nav-links a:hover::after,
+.nav-links a.active::after {
+  width: 100%
+}
+
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+  z-index: 1001
+}
+
+.nav-hamburger span {
+  display: block;
+  width: 24px;
+  height: 1.5px;
+  background: var(--text-primary);
+  transition: all var(--transition-fast)
+}
+
+.nav-hamburger.open span:nth-child(1) {
+  transform: rotate(45deg) translateY(4.5px) translateX(4.5px)
+}
+
+.nav-hamburger.open span:nth-child(2) {
+  opacity: 0
+}
+
+.nav-hamburger.open span:nth-child(3) {
+  transform: rotate(-45deg) translateY(-4.5px) translateX(4.5px)
+}
+
+/* ================================================
+   GALLERY / LIGHTBOX / PAGES
+   ================================================ */
+.section {
+  padding: var(--space-3xl) 0
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: var(--space-2xl)
+}
+
+.section-header h2 {
+  margin-bottom: var(--space-sm)
+}
+
+.section-header p {
+  color: var(--text-secondary);
+  font-size: .9rem;
+  max-width: 500px;
+  margin: 0 auto
+}
+
+.section-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border-hover);
+  margin: var(--space-md) auto
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-md)
+}
+
+.photo-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  aspect-ratio: 3/4;
+  background: var(--bg-secondary);
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .6s var(--ease-out), transform .6s var(--ease-out)
+}
+
+.photo-card.revealed {
+  opacity: 1;
+  transform: translateY(0)
+}
+
+.photo-card canvas,
+.photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .6s var(--ease-out), filter .4s var(--ease-out)
+}
+
+.photo-card:hover canvas,
+.photo-card:hover img {
+  transform: scale(1.05);
+  filter: brightness(1.1)
+}
+
+.photo-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, .7) 0%, transparent 50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-lg);
+  opacity: 0;
+  transition: opacity var(--transition-med)
+}
+
+.photo-card:hover .photo-card-overlay {
+  opacity: 1
+}
+
+.photo-card-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin-bottom: var(--space-xs)
+}
+
+.photo-card-category {
+  font-size: .7rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--text-secondary)
+}
+
+.gallery-filters {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+  flex-wrap: wrap
+}
+
+.filter-btn {
+  font-size: .75rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid transparent;
+  border-radius: 100px;
+  transition: all var(--transition-fast);
+  background: transparent
+}
+
+.filter-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-color)
+}
+
+.filter-btn.active {
+  color: var(--bg-primary);
+  background: var(--accent);
+  border-color: var(--accent)
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, .95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-med)
+}
+
+.lightbox.open {
+  opacity: 1;
+  pointer-events: all
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center
+}
+
+.lightbox-content canvas,
+.lightbox-content img {
+  max-width: 90vw;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  transform: scale(.9);
+  transition: transform .5s var(--ease-out)
+}
+
+.lightbox.open .lightbox-content canvas,
+.lightbox.open .lightbox-content img {
+  transform: scale(1)
+}
+
+.lightbox-info {
+  margin-top: var(--space-lg);
+  text-align: center
+}
+
+.lightbox-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 300
+}
+
+.lightbox-category {
+  font-size: .7rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs)
+}
+
+.lightbox-close {
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+  z-index: 10
+}
+
+.lightbox-close:hover {
+  color: var(--text-primary)
+}
+
+.lightbox-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+  z-index: 10
+}
+
+.lightbox-nav:hover {
+  color: var(--text-primary)
+}
+
+.lightbox-prev {
+  left: var(--space-lg)
+}
+
+.lightbox-next {
+  right: var(--space-lg)
+}
+
+.lightbox-purchase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  text-decoration: none
+}
+
+.lightbox-purchase:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: var(--accent-dim)
+}
+
+.about-hero {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: calc(var(--nav-height) + var(--space-3xl))
+}
+
+.about-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2xl);
+  align-items: center;
+  padding: var(--space-xl) 0
+}
+
+.about-image {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  background: var(--bg-secondary)
+}
+
+.about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover
+}
+
+.about-text {
+  max-width: 500px
+}
+
+.about-text p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  font-size: .95rem;
+  line-height: 1.8
+}
+
+.about-text h3 {
+  margin-bottom: var(--space-md)
+}
+
+.contact-hero {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: calc(var(--nav-height) + var(--space-3xl))
+}
+
+.contact-content {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  padding-bottom: var(--space-3xl)
+}
+
+.contact-content p {
+  color: var(--text-secondary);
+  font-size: .95rem;
+  line-height: 1.8;
+  margin-bottom: var(--space-lg)
+}
+
+.contact-email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  border: 1px solid var(--border-color);
+  border-radius: 100px;
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  letter-spacing: .05em;
+  transition: all var(--transition-fast)
+}
+
+.contact-email-link:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim)
+}
+
+.site-footer {
+  padding: var(--space-2xl) 0;
+  border-top: 1px solid var(--border-color);
+  text-align: center
+}
+
+.footer-logo {
+  width: 60px;
+  margin: 0 auto var(--space-md);
+  opacity: .5
+}
+
+.footer-text {
+  font-size: .75rem;
+  color: var(--text-muted);
+  letter-spacing: .1em
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .8s var(--ease-out), transform .8s var(--ease-out)
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0)
+}
+
+.no-scroll {
+  overflow: hidden
+}
+
+@media(max-width:768px) {
+  :root {
+    --nav-height: 60px
+  }
+
+  .logo-full img {
+    width: 160px
+  }
+
+  .man-svg {
+    height: 150px
+  }
+
+  .nav-links {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(10, 10, 10, .97);
+    backdrop-filter: blur(20px);
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-xl);
+    transform: translateX(100%);
+    transition: transform .5s var(--ease-out)
+  }
+
+  .nav-links.open {
+    transform: translateX(0)
+  }
+
+  .nav-links a {
+    font-size: 1rem;
+    letter-spacing: .2em
+  }
+
+  .nav-hamburger {
+    display: flex
+  }
+
+  .photo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--space-sm)
+  }
+
+  .about-content {
+    grid-template-columns: 1fr;
+    text-align: center
+  }
+
+  .about-text {
+    max-width: 100%
+  }
+
+  .gallery-filters {
+    gap: var(--space-sm)
+  }
+
+  .filter-btn {
+    padding: var(--space-xs) var(--space-md);
+    font-size: .65rem
+  }
+
+  .lightbox-nav {
+    display: none
+  }
+}
+
+@media(max-width:480px) {
+  .logo-full img {
+    width: 130px
+  }
+
+  .man-svg {
+    height: 120px
+  }
+
+  .photo-grid {
+    grid-template-columns: 1fr
+  }
+}
