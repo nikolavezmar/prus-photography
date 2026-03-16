@@ -1,0 +1,365 @@
+/* ================================================
+   ARTICULATED SVG RUNNING MAN — Animation Keyframes
+   ================================================
+   
+   All animations are PAUSED by default.
+   Adding .running to .man-container activates the run cycle.
+   
+   Pivot points match the SVG geometry (centered at x=100).
+   ================================================ */
+
+/* ------------------------------------------------
+   PIVOT POINTS — anatomical rotation origins
+   ------------------------------------------------ */
+#runner {
+    transform-origin: 100px 180px;
+}
+
+#arm-back,
+#arm-front {
+    transform-origin: 100px 60px;
+}
+
+#elbow-back,
+#elbow-front {
+    transform-origin: 100px 110px;
+}
+
+#leg-back,
+#leg-front {
+    transform-origin: 100px 140px;
+}
+
+#knee-back,
+#knee-front {
+    transform-origin: 100px 200px;
+}
+
+#briefcase-group {
+    transform-origin: 100px 160px;
+}
+
+#lid-hinge,
+#lid-flapper {
+    transform-origin: 100px 195px;
+}
+
+#torso-body {
+    transform-origin: 100px 90px;
+}
+
+/* ------------------------------------------------
+   INITIAL POSE — linger-phase stance (from pose editor)
+   ------------------------------------------------ */
+#runner {
+    transform: rotate(-2deg);
+}
+
+#leg-front {
+    transform: rotate(-18deg);
+}
+
+#knee-front {
+    transform: rotate(17deg);
+}
+
+#leg-back {
+    transform: rotate(32deg);
+}
+
+#knee-back {
+    transform: rotate(30deg);
+}
+
+#arm-front {
+    transform: rotate(36deg);
+}
+
+#elbow-front {
+    transform: rotate(-11deg);
+}
+
+#arm-back {
+    transform: rotate(-5deg);
+}
+
+#elbow-back {
+    transform: rotate(1deg);
+}
+
+#briefcase-group {
+    transform: rotate(5deg);
+}
+
+
+/* ------------------------------------------------
+   ANIMATION ASSIGNMENTS — gated by .running class
+   ------------------------------------------------ */
+.man-container.running #runner {
+    animation: run-bounce-and-lean 0.8s linear infinite;
+}
+
+.man-container.running #leg-back {
+    animation: run-thigh-left 0.8s linear infinite;
+}
+
+.man-container.running #knee-back {
+    animation: run-knee-left 0.8s linear infinite;
+}
+
+.man-container.running #arm-back {
+    animation: run-arm-left 0.8s linear infinite;
+}
+
+.man-container.running #elbow-back {
+    animation: run-elbow-left 0.8s linear infinite;
+}
+
+.man-container.running #briefcase-group {
+    animation: swing-briefcase 0.8s linear infinite;
+}
+
+.man-container.running #leg-front {
+    animation: run-thigh-right 0.8s linear infinite;
+}
+
+.man-container.running #knee-front {
+    animation: run-knee-right 0.8s linear infinite;
+}
+
+.man-container.running #arm-front {
+    animation: run-arm-right 0.8s linear infinite;
+}
+
+.man-container.running #elbow-front {
+    animation: run-elbow-right 0.8s linear infinite;
+}
+
+.man-container.running #torso-body {
+    animation: shirt-flex 0.4s ease-in-out infinite alternate;
+}
+
+.man-container.running #lid-hinge {
+    animation: break-open 0.4s 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.man-container.running #lid-flapper {
+    animation: lid-swing 0.8s 0.75s linear infinite alternate;
+}
+
+
+/* ------------------------------------------------
+   THE PHYSICS OF RUNNING
+   ------------------------------------------------ */
+
+/* Overall bounce + forward lean */
+@keyframes run-bounce-and-lean {
+
+    0%,
+    50%,
+    100% {
+        transform: translateY(-12px) rotate(2deg);
+    }
+
+    25%,
+    75% {
+        transform: translateY(4px) rotate(6deg);
+    }
+}
+
+/* Subtle chest expansion / shirt pull */
+@keyframes shirt-flex {
+    0% {
+        transform: scaleX(1) scaleY(1);
+    }
+
+    100% {
+        transform: scaleX(1.04) scaleY(0.98);
+    }
+}
+
+
+/* ------------------------------------------------
+   LEFT SIDE (Back limbs)
+   ------------------------------------------------ */
+@keyframes run-thigh-left {
+    0% {
+        transform: rotate(-40deg);
+    }
+
+    50% {
+        transform: rotate(40deg);
+    }
+
+    100% {
+        transform: rotate(-40deg);
+    }
+}
+
+@keyframes run-knee-left {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(10deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+
+    75% {
+        transform: rotate(110deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes run-arm-left {
+    0% {
+        transform: rotate(40deg);
+    }
+
+    50% {
+        transform: rotate(-40deg);
+    }
+
+    100% {
+        transform: rotate(40deg);
+    }
+}
+
+@keyframes run-elbow-left {
+    0% {
+        transform: rotate(-20deg);
+    }
+
+    50% {
+        transform: rotate(-70deg);
+    }
+
+    100% {
+        transform: rotate(-20deg);
+    }
+}
+
+
+/* ------------------------------------------------
+   BRIEFCASE MOMENTUM
+   ------------------------------------------------ */
+@keyframes swing-briefcase {
+    0% {
+        transform: rotate(20deg);
+    }
+
+    25% {
+        transform: rotate(50deg);
+    }
+
+    50% {
+        transform: rotate(-20deg);
+    }
+
+    75% {
+        transform: rotate(-50deg);
+    }
+
+    100% {
+        transform: rotate(20deg);
+    }
+}
+
+
+/* ------------------------------------------------
+   RIGHT SIDE (Front limbs — offset 50% from left)
+   ------------------------------------------------ */
+@keyframes run-thigh-right {
+    0% {
+        transform: rotate(40deg);
+    }
+
+    50% {
+        transform: rotate(-40deg);
+    }
+
+    100% {
+        transform: rotate(40deg);
+    }
+}
+
+@keyframes run-knee-right {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(110deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+
+    75% {
+        transform: rotate(10deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes run-arm-right {
+    0% {
+        transform: rotate(-40deg);
+    }
+
+    50% {
+        transform: rotate(40deg);
+    }
+
+    100% {
+        transform: rotate(-40deg);
+    }
+}
+
+@keyframes run-elbow-right {
+    0% {
+        transform: rotate(-70deg);
+    }
+
+    50% {
+        transform: rotate(-20deg);
+    }
+
+    100% {
+        transform: rotate(-70deg);
+    }
+}
+
+
+/* ------------------------------------------------
+   BRIEFCASE LID
+   ------------------------------------------------ */
+@keyframes break-open {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(175deg);
+    }
+}
+
+@keyframes lid-swing {
+    0% {
+        transform: rotate(-15deg);
+    }
+
+    100% {
+        transform: rotate(20deg);
+    }
+}

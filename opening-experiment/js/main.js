@@ -1,7 +1,9 @@
 /**
- * main.js — Prus Photography
+ * main.js — Prus Photography (Opening Experiment)
  * 
  * Animation timeline:
+ * 0) Original logo photo shows full-screen for 1s, then fades out (1s fade)
+ * 0.5) Light panels and rail fade in during the photo fade
  * 1) Man stands still for 2.5s (linger)
  * 2) .running class added → CSS keyframes animate limbs, man slides off-screen
  * 3) Papers drop from briefcase with physics arcs
@@ -28,6 +30,9 @@ const papersLayer = document.getElementById('papersLayer');
 const windContainer = document.getElementById('windContainer');
 const mainNav = document.getElementById('mainNav');
 const logoText = document.getElementById('logoText');
+const photoReveal = document.getElementById('photoReveal');
+const photoTracker = document.getElementById('photoTracker');
+const customBackgroundElements = document.getElementById('customBackgroundElements');
 
 // --- Final card grid positions ---
 function getFinalPositions() {
@@ -37,7 +42,9 @@ function getFinalPositions() {
     const cols = vw > 768 ? 4 : vw > 480 ? 2 : 1;
     const cardW = (maxW - gap * (cols - 1)) / cols;
     const cardH = cardW * (4 / 3);
-    const gx = (vw - maxW) / 2, gy = vh * 0.28;
+    // Logo text ends up at 80px (approx 30px tall). Place grid immediately below it.
+    const gy = 125;
+    const gx = (vw - maxW) / 2;
     const pos = [];
     for (let i = 0; i < 8; i++) {
         pos.push({
@@ -84,7 +91,9 @@ function getPaperStyle(index) {
     const br = Math.random() * 3;
     const clipPath = `polygon(${tl}% ${tl}%, ${100-tr}% ${tr}%, ${100-br}% ${100-br}%, ${bl}% ${100-bl}%)`;
     return {
-        width: w, height: h, borderRadius: '1px',
+        width: w,
+        height: h,
+        borderRadius: '1px',
         clipPath: clipPath,
         background: `linear-gradient(${angle}deg, #fff, #f6f6f6 30%, #eee 70%, #f4f4f4)`,
         boxShadow: `1px 2px 4px rgba(0,0,0,0.18)`,
@@ -93,7 +102,7 @@ function getPaperStyle(index) {
 
 function getPaperPhysics(index) {
     if (index === 0) {
-        // Slow floater — takes ~4s (1 extra second)
+        // Slow floater — takes ~4s (1 extra second), lazy drift with big sway
         return {
             vx: (Math.random() - 0.5) * 40,
             vy: -(150 + Math.random() * 50),
@@ -105,6 +114,7 @@ function getPaperPhysics(index) {
             swayFreq: 1.5 + Math.random() * 1,
         };
     }
+    // Normal papers: burst upward in a plume, land within ~3s
     return {
         vx: (Math.random() - 0.5) * 120,
         vy: -(200 + Math.random() * 200),
@@ -401,12 +411,40 @@ function blowPapersToFinal() {
 
 
 // ===========================
-// ANIMATION TIMELINE
+// PHOTO REVEAL PHASE
 // ===========================
-if (introScene && manContainer) {
+const PHOTO_HOLD = 2000;     // Show original photo for 2s
+const PHOTO_FADE = 2500;     // Fade-out duration (matches CSS transition)
+const PHOTO_TOTAL = PHOTO_HOLD + PHOTO_FADE; // Total time before animation starts
+
+function startPhotoReveal() {
+    // After PHOTO_HOLD ms, begin fading out the photo
+    setTimeout(() => {
+        if (photoReveal) photoReveal.classList.add('fade-out');
+        // Show the custom background objects as the photo fades
+        if (customBackgroundElements) customBackgroundElements.classList.add('visible');
+    }, PHOTO_HOLD);
+
+    // After the photo is fully faded, kick off the main animation
+    setTimeout(() => {
+        if (photoReveal) photoReveal.style.display = 'none';
+        startMainAnimation();
+    }, PHOTO_TOTAL);
+}
+
+// ===========================
+// MAIN ANIMATION TIMELINE
+// ===========================
+function startMainAnimation() {
+    if (!introScene || !manContainer) {
+        if (mainNav && !mainNav.classList.contains('visible')) mainNav.classList.add('visible');
+        if (logoText) logoText.classList.add('blown');
+        return;
+    }
+
     createPapers();
 
-    const LINGER = 2500;       // Man stands still for 2.5s
+    const LINGER = 0;          // Man starts running immediately when photo fade ends
     const BLEND_DUR = 300;     // Quick blend from linger pose into running cycle
     const WALK_DUR = 3500;     // Run cycle duration (faster)
     const MAN_EXIT = LINGER + BLEND_DUR + WALK_DUR;
@@ -414,6 +452,7 @@ if (introScene && manContainer) {
     const PAPER_DROP = LINGER + BLEND_DUR + LID_OPEN_DELAY; // Papers burst out the moment lid swings open on upswing
 
     // --- Smooth running cycle using pure math (cosine waves + Fourier) ---
+    // No linear keyframe interpolation = no sharp velocity reversals = no hitches.
     const TWO_PI = Math.PI * 2;
     const FOUR_PI = Math.PI * 4;
 
@@ -421,17 +460,23 @@ if (introScene && manContainer) {
         const p = TWO_PI * phase;
         const sinP = Math.sin(p);
         const cosP = Math.cos(p);
-        const cosP2 = Math.cos(FOUR_PI * phase);
+        const cosP2 = Math.cos(FOUR_PI * phase); // double-frequency for bounce
         return {
+            // Runner bounce (double freq): -12 ↔ 4
             runnerTY:    -4 - 8 * cosP2,
-            runnerRot:    4 - 2 * cosP2,
-            legBack:     -40 * cosP,
-            legFront:     40 * cosP,
-            armBack:      40 * cosP,
-            armFront:    -40 * cosP,
-            elbowBack:   -45 + 25 * cosP,
-            elbowFront:  -45 - 25 * cosP,
-            briefcase:    50 * sinP + 20 * cosP,
+            runnerRot:    4 - 2 * cosP2,          // lean: 2 ↔ 6
+            // Legs: smooth sinusoidal swing
+            legBack:     -40 * cosP,               // -40 ↔ 40
+            legFront:     40 * cosP,               //  40 ↔ -40
+            // Arms: opposite to corresponding leg
+            armBack:      40 * cosP,               //  40 ↔ -40
+            armFront:    -40 * cosP,               // -40 ↔ 40
+            // Elbows: sinusoidal flex
+            elbowBack:   -45 + 25 * cosP,          // -20 ↔ -70
+            elbowFront:  -45 - 25 * cosP,          // -70 ↔ -20
+            // Briefcase: combined sin+cos for phase-shifted swing
+            briefcase:    50 * sinP + 20 * cosP,   // 20 → 50 → -20 → -50
+            // Knees: Fourier series (smooth C∞ fit through 0→10→0→110→0)
             kneeBack:    Math.max(0, 30 - 50 * sinP - 30 * cosP2),
             kneeFront:   Math.max(0, 30 + 50 * sinP - 30 * cosP2),
         };
@@ -441,18 +486,20 @@ if (introScene && manContainer) {
     setTimeout(() => {
         const RUN_PERIOD = 600;
         const TOTAL_DUR = BLEND_DUR + WALK_DUR;
-        const SLIDE_START = 50;   // CSS initial left: 50%
-        const SLIDE_END = 130;
+        const SLIDE_START = 39;   // CSS initial left: 39%
+        const SLIDE_END = 150;    // slide off-screen to 150%
         const SLIDE_RANGE = SLIDE_END - SLIDE_START;
         const loopStart = performance.now();
         let secondaryStarted = false;
 
+        // Initial poses from CSS
         const init = {
-            runnerTY: 0, runnerRot: -3,
-            legBack: 14, kneeBack: 58, armBack: 0, elbowBack: 1, briefcase: 3,
-            legFront: -24, kneeFront: 25, armFront: 43, elbowFront: -21,
+            runnerTY: 0, runnerRot: -2,
+            legBack: 32, kneeBack: 30, armBack: -5, elbowBack: 1, briefcase: 5,
+            legFront: -18, kneeFront: 17, armFront: 36, elbowFront: -11,
         };
 
+        // Cache DOM references
         const runnerEl = document.getElementById('runner');
         const el = {};
         ['leg-back','knee-back','arm-back','elbow-back','briefcase-group',
@@ -471,10 +518,11 @@ if (introScene && manContainer) {
         }
 
         // Convert slide range to px for transform-based sliding (no layout thrash)
-        // CSS has transform: translate(-50%, -50%) for centering, so we must preserve it
+        // CSS has transform: translateX(-40%) for centering, so we must preserve it
         const containerParent = manContainer.parentElement;
         const parentWidth = containerParent ? containerParent.offsetWidth : window.innerWidth;
         const slideRangePx = ((SLIDE_END - SLIDE_START) / 100) * parentWidth;
+        // left stays at CSS initial (39%), we only add translateX offset on top of the -40% centering
 
         function runLoop(now) {
             const elapsed = now - loopStart;
@@ -501,13 +549,13 @@ if (introScene && manContainer) {
             setRot(el['elbow-front'],     init.elbowFront, c.elbowFront, blend);
 
             // Slide using translateX (GPU composited, no layout recalc)
-            // Preserve CSS translate(-50%, -50%) centering offset
+            // Preserve CSS translateX(-40%) centering offset
             const slideT = Math.min(elapsed / TOTAL_DUR, 1);
-            manContainer.style.transform = `translate(calc(-50% + ${slideT * slideRangePx}px), -50%)`;
+            manContainer.style.transform = `translateX(calc(-40% + ${slideT * slideRangePx}px))`;
 
+            // Fire one-time secondary animations when blend completes
             if (rawT >= 1 && !secondaryStarted) {
                 secondaryStarted = true;
-
                 const torso = document.getElementById('torso-body');
                 if (torso) torso.style.animation = 'shirt-flex 0.4s ease-in-out infinite alternate';
                 const lidH = document.getElementById('lid-hinge');
@@ -535,57 +583,68 @@ if (introScene && manContainer) {
 
     // Wind starts only after ALL papers have settled (including the slow floater)
     onAllPapersGrounded = () => {
+        // Fade out background elements (rail + lights) when wind starts
+        if (customBackgroundElements) {
+            customBackgroundElements.style.opacity = '0';
+        }
         showWindSwirls();
         blowPapersToFinal();
-        logoText.classList.add('blown');
-        logoText.style.marginTop = '0';
 
-        const textStartX = window.innerWidth / 2;
-        const textStartY = window.innerHeight / 2 + 160;
-        const textEndX = window.innerWidth / 2;
-        const textEndY = 80;
-        const textDuration = 4000;
-        const textStartTime = performance.now();
-        const textOrbitRadius = window.innerWidth * 0.3;
+        if (logoText) {
+            logoText.classList.add('blown');
+            logoText.style.marginTop = '0';
 
-        function animateText(now) {
-            const elapsed = now - textStartTime;
-            let t = Math.min(elapsed / textDuration, 1);
-            const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const textStartX = window.innerWidth / 2;
+            const textStartY = window.innerHeight / 2 + 160;
+            const textEndX = window.innerWidth / 2;
+            const textEndY = 80;
+            const textDuration = 4000;
+            const textStartTime = performance.now();
+            const textOrbitRadius = window.innerWidth * 0.3;
 
-            let curX = textStartX + (textEndX - textStartX) * easeT;
-            let curY = textStartY + (textEndY - textStartY) * easeT;
+            function animateText(now) {
+                const elapsed = now - textStartTime;
+                let t = Math.min(elapsed / textDuration, 1);
+                const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-            const orbitFade = Math.sin(easeT * Math.PI);
-            const orbitAngle = easeT * Math.PI * 2 * 3;
-            curX += Math.cos(orbitAngle) * textOrbitRadius * orbitFade;
-            curY += Math.sin(orbitAngle) * textOrbitRadius * orbitFade * 0.5;
+                let curX = textStartX + (textEndX - textStartX) * easeT;
+                let curY = textStartY + (textEndY - textStartY) * easeT;
 
-            const rot = Math.sin(orbitAngle) * 20 * orbitFade;
-            const scale = 1 - 0.1 * orbitFade;
+                const orbitFade = Math.sin(easeT * Math.PI);
+                const orbitAngle = easeT * Math.PI * 2 * 3;
+                curX += Math.cos(orbitAngle) * textOrbitRadius * orbitFade;
+                curY += Math.sin(orbitAngle) * textOrbitRadius * orbitFade * 0.5;
 
-            logoText.style.top = curY + 'px';
-            logoText.style.left = curX + 'px';
-            logoText.style.transform = `translate(-50%, 0) rotate(${rot}deg) scale(${scale})`;
+                const rot = Math.sin(orbitAngle) * 20 * orbitFade;
+                const scale = 1 - 0.1 * orbitFade;
 
-            if (t < 1) {
-                requestAnimationFrame(animateText);
-            } else {
-                logoText.style.top = '80px';
-                logoText.style.left = '50%';
-                logoText.style.transform = 'translate(-50%, 0) rotate(0deg) scale(1)';
+                logoText.style.top = curY + 'px';
+                logoText.style.left = curX + 'px';
+                logoText.style.transform = `translate(-50%, 0) rotate(${rot}deg) scale(${scale})`;
+
+                if (t < 1) {
+                    requestAnimationFrame(animateText);
+                } else {
+                    logoText.style.top = '80px';
+                    logoText.style.left = '50%';
+                    logoText.style.transform = 'translate(-50%, 0) rotate(0deg) scale(1)';
+                }
             }
+            requestAnimationFrame(animateText);
         }
-        requestAnimationFrame(animateText);
 
+        // Show nav after wind animation settles
         setTimeout(() => {
             if (mainNav) mainNav.classList.add('visible');
         }, 2000);
     };
+}
 
+// Kick it off
+if (photoReveal) {
+    startPhotoReveal();
 } else {
-    if (mainNav && !mainNav.classList.contains('visible')) mainNav.classList.add('visible');
-    if (logoText) logoText.classList.add('blown');
+    startMainAnimation();
 }
 
 // --- Mobile Menu ---
