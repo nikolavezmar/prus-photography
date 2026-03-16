@@ -600,6 +600,11 @@ function startMainAnimation() {
         showWindSwirls();
         blowPapersToFinal();
 
+        // After cards settle into final grid, allow scrolling to see all rows
+        setTimeout(() => {
+            if (introScene) introScene.style.overflow = 'visible';
+        }, 5000);
+
         if (logoText) {
             logoText.classList.add('blown');
             logoText.style.marginTop = '0';

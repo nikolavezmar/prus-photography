@@ -546,6 +546,11 @@ if (introScene && manContainer) {
     onAllPapersGrounded = () => {
         showWindSwirls();
         blowPapersToFinal();
+
+        setTimeout(() => {
+            if (introScene) introScene.style.overflow = 'visible';
+        }, 5000);
+
         logoText.classList.add('blown');
         logoText.style.marginTop = '0';
 
