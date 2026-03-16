@@ -307,6 +307,8 @@ function blowPapersToFinal() {
                         left: curX + 'px', top: curY + 'px',
                         transform: `rotate(${rot}deg)`,
                         opacity: opacity, transition: 'none',
+                        border: '1px solid rgba(0,0,0,0.08)',
+                        boxShadow: pShadow,
                     });
 
                     if (t < 1) {
@@ -353,7 +355,7 @@ function blowPapersToFinal() {
                     w = pW; h = pH;
                     br = pBR; clipPath = pClip;
                     bg = pBG; shadow = pShadow;
-                    border = 'none';
+                    border = '1px solid rgba(0,0,0,0.08)';
                     rot = startRot + easeT * 1080;
                 } else {
                     const localT = (easeT - MORPH_START) / (1 - MORPH_START);
@@ -365,7 +367,7 @@ function blowPapersToFinal() {
                     clipPath = s > 0.3 ? 'none' : pClip;
                     bg = s > 0.5 ? '' : pBG;
                     shadow = s > 0.5 ? `${3 * s}px ${3 * s}px 0 #111` : pShadow;
-                    border = s > 0.5 ? '2px solid #111' : 'none';
+                    border = s > 0.5 ? '2px solid #111' : '1px solid rgba(0,0,0,0.08)';
                     rot = startRot + MORPH_START * 1080 + (rots[i] - (startRot + MORPH_START * 1080) % 360) * s;
                 }
 
