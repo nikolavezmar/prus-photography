@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.man-sprite {
+  width: 200px;
+  height: 340px;
+  background-image: url('ezgif-54c016148ad4d8bf.png');
+  background-size: 500% 500%;
+  background-repeat: no-repeat;
+  display: inline-block;
+  border: 1px solid red;
+}
+</style>
+</head>
+<body>
+<script>
+for(let y=0; y<=100; y+=25) {
+  for(let x=0; x<=100; x+=25) {
+    if(y===100 && x>0) continue; // only first frame of last row
+    let div = document.createElement('div');
+    div.className = 'man-sprite';
+    div.style.backgroundPosition = `${x}% ${y}%`;
+    div.title = `${x}% ${y}%`;
+    document.body.appendChild(div);
+  }
+}
+</script>
+</body>
+</html>

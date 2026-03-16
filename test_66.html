@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Animation Test 66</title>
+  <style>
+    body { background: #fff; padding: 50px; }
+    .man-svg { height: 340px; width: 300px; overflow: visible; transform: scaleX(-1); }
+    #manPath { fill: #111; }
+  </style>
+</head>
+<body>
+  <h2>Frame at 66%</h2>
+  <svg viewBox="0 0 200 340" class="man-svg">
+    <defs>
+      <path id="manPath" d="M95.60,10.73 C98.03,11.47 100.47,12.93 102.18,14.88... (truncated for brevity, using original path) Z" />
+      <clipPath id="clipTorso"><polygon points="50,0 148,0 148,220 50,220" /></clipPath>
+      <clipPath id="clipArmR"><polygon points="100,50 200,50 200,220 118,220 100,140" /></clipPath>
+      <clipPath id="clipBriefcase"><polygon points="120,40 200,40 200,220 98,220 98,120 130,120" /></clipPath>
+      <clipPath id="clipArmL"><polygon points="0,40 100,40 100,180 0,180" /></clipPath>
+      <clipPath id="clipThighR"><polygon points="86,165 200,165 200,245 86,245" /></clipPath>
+      <clipPath id="clipShinR"><polygon points="86,245 200,245 200,340 86,340" /></clipPath>
+      <clipPath id="clipThighL"><polygon points="0,165 100,165 100,245 0,245" /></clipPath>
+      <clipPath id="clipShinL"><polygon points="0,245 100,245 100,340 0,340" /></clipPath>
+    </defs>
+    
+    <!-- 66% transform values based on CSS keyframes 
+         legL: between 50%(-55deg) and 75%(-10deg) -> roughly -26deg
+         shinL: between 50%(0deg) and 75%(70deg) -> roughly 45deg
+         legR: between 50%(55deg) and 75%(30deg) -> roughly 39deg
+         shinR: between 50%(0deg) and 75%(0deg) -> 0deg
+         armL: between 50%(-25deg) and 100%(0deg) -> roughly -8deg
+         armR: between 50%(25deg) and 100%(0deg) -> roughly 8deg
+    -->
+    <g id="articulatedBody">
+      <g id="backLimbs">
+        <g class="leg-r" style="transform-origin:96px 185px; transform: rotate(39deg);">
+          <g clip-path="url(#clipThighR)"><use href="#manPath" /></g>
+          <g class="shin-r" style="transform-origin:120px 245px; transform: rotate(0deg);" clip-path="url(#clipShinR)"><use href="#manPath" /></g>
+        </g>
+        <g class="arm-r" style="transform-origin:102px 62px; transform: rotate(8deg);">
+          <g clip-path="url(#clipArmR)"><use href="#manPath" /></g>
+          <g class="briefcase" style="transform-origin:116px 113px" clip-path="url(#clipBriefcase)"><use href="#manPath" /></g>
+        </g>
+      </g>
+      <g id="solidTorso" clip-path="url(#clipTorso)"><use href="#manPath" /></g>
+      <g id="frontLimbs">
+        <g class="leg-l" style="transform-origin:86px 185px; transform: rotate(-26deg);">
+          <g clip-path="url(#clipThighL)"><use href="#manPath" /></g>
+          <g class="shin-l" style="transform-origin:70px 245px; transform: rotate(45deg);" clip-path="url(#clipShinL)"><use href="#manPath" /></g>
+        </g>
+        <g class="arm-l" style="transform-origin:83px 62px; transform: rotate(-8deg);" clip-path="url(#clipArmL)">
+          <use href="#manPath" />
+        </g>
+      </g>
+    </g>
+  </svg>
+</body>
+</html>

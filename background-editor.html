@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Elements Builder</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #fff;
+        }
+
+        /* Base Photo Setup */
+        .photo-reveal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .photo-reveal-img {
+            width: 100%; height: 100%;
+            object-fit: cover; object-position: center;
+            opacity: 0.35; /* Faint to serve as a guide */
+        }
+        .photo-tracker {
+            position: absolute;
+            width: max(100vw, 100vh * 1.443609);
+            height: max(100vh, 100vw * 0.692708);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Editor UI */
+        #editor-panel {
+            position: absolute;
+            top: 0; right: 0;
+            width: 320px; height: 100%;
+            background: rgba(20, 20, 20, 0.95);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column;
+            z-index: 100;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+        }
+
+        .panel-section {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        h3 { margin: 0 0 10px 0; font-size: 15px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
+
+        .btn {
+            background: #333; color: #fff;
+            border: 1px solid #555; border-radius: 4px;
+            padding: 8px 12px; cursor: pointer; font-size: 13px;
+            width: 100%; margin-bottom: 5px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #444; }
+        .btn-add { background: #007aff; border-color: #007aff; }
+        .btn-add:hover { background: #005bb5; }
+
+        #elementList {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .list-item {
+            background: rgba(255,255,255,0.05);
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+        .list-item:hover { background: rgba(255,255,255,0.1); }
+        .list-item.selected { border-color: #007aff; background: rgba(0, 122, 255, 0.1); }
+        .list-item .delete-btn {
+            color: #ff3b30; background: none; border: none; cursor: pointer; font-size: 16px; padding: 0 5px;
+        }
+
+        /* Inspector */
+        #inspector { display: none; }
+        .slider-row { margin-bottom: 10px; }
+        .slider-row label { display: flex; justify-content: space-between; font-size: 12px; color: #ccc; margin-bottom: 2px; }
+        .slider-row input[type=range] { width: 100%; margin: 0; }
+        .slider-row select { width: 100%; background: #222; color: #fff; border: 1px solid #444; padding: 4px; border-radius: 4px; }
+
+        /* Code Output Phase */
+        #codeOutputBox {
+            height: 150px;
+            background: #000;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-family: monospace; font-size: 11px;
+            color: #5ac8fa;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            user-select: all;
+            margin-top: 10px;
+        }
+
+        /* Drawing Elements */
+        .drawn-element {
+            position: absolute;
+            pointer-events: none;
+            transition: border 0.1s;
+        }
+        .drawn-element.selected-in-dom {
+            border: 1px dashed #007aff !important;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="photo-reveal">
+        <img src="/original_logo_photo.JPG" class="photo-reveal-img" />
+    </div>
+
+    <!-- The coordinate space wrapper -->
+    <div class="photo-tracker" id="tracker">
+        <!-- Elements will be inserted here dynamically -->
+    </div>
+
+    <div id="editor-panel">
+        <div class="panel-section">
+            <h3>Add Element</h3>
+            <button class="btn btn-add" onclick="addElement('line')">+ Vertical Line</button>
+            <button class="btn btn-add" onclick="addElement('rect')">+ Rounded Rect / Light</button>
+            <button class="btn btn-add" onclick="addElement('horizontal')">+ Horizontal Handrail</button>
+        </div>
+
+        <div id="elementList">
+            <!-- List Items -->
+        </div>
+
+        <div class="panel-section" id="inspector">
+            <h3>Properties</h3>
+            <div class="slider-row">
+                <label>Top (%) <span id="lblTop"></span></label>
+                <input type="range" id="valTop" min="-20" max="120" step="0.1" oninput="updateProps()">
+            </div>
+            <div class="slider-row">
+                <label>Left (%) <span id="lblLeft"></span></label>
+                <input type="range" id="valLeft" min="-20" max="120" step="0.1" oninput="updateProps()">
+            </div>
+            <div class="slider-row" id="rowWidthPx">
+                <label>Width (px) <span id="lblWidthPx"></span></label>
+                <input type="range" id="valWidthPx" min="1" max="100" step="1" oninput="updateProps()">
+            </div>
+            <div class="slider-row" id="rowWidthPct">
+                <label>Width (%) <span id="lblWidthPct"></span></label>
+                <input type="range" id="valWidthPct" min="1" max="100" step="0.5" oninput="updateProps()">
+            </div>
+            <div class="slider-row" id="rowHeightPct">
+                <label>Height (%) / (vh) <span id="lblHeightPct"></span></label>
+                <input type="range" id="valHeightPct" min="0.5" max="100" step="0.5" oninput="updateProps()">
+            </div>
+            <div class="slider-row" id="rowHeightPx">
+                <label>Height (px) <span id="lblHeightPx"></span></label>
+                <input type="range" id="valHeightPx" min="1" max="100" step="1" oninput="updateProps()">
+            </div>
+            <div class="slider-row" id="rowRadius">
+                <label>Border Radius (px) <span id="lblRadius"></span></label>
+                <input type="range" id="valRadius" min="0" max="50" step="1" oninput="updateProps()">
+            </div>
+            <div class="slider-row">
+                <label>Blur (px) <span id="lblBlur"></span></label>
+                <input type="range" id="valBlur" min="0" max="20" step="1" oninput="updateProps()">
+            </div>
+            <div class="slider-row">
+                <label>Color</label>
+                <select id="valColor" onchange="updateProps()">
+                    <option value="rgba(0,0,0,0.4)">Dark (Rail/Panel)</option>
+                    <option value="rgba(0,0,0,0.8)">Very Dark</option>
+                    <option value="rgba(255,255,255,0.6)">Light (Bulb)</option>
+                    <option value="rgba(255,255,255,0.9)">Bright Light</option>
+                    <option value="#ff3b30">Red (Debugging)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <button class="btn" onclick="generateCode()">Generate Output Code</button>
+            <div id="codeOutputBox">Code will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        const tracker = document.getElementById('tracker');
+        const listDiv = document.getElementById('elementList');
+        const inspector = document.getElementById('inspector');
+        
+        let elements = [];
+        let uidCounter = 0;
+        let selectedId = null;
+
+        // Add a new element to state
+        function addElement(type) {
+            uidCounter++;
+            let el = {
+                id: uidCounter,
+                type: type,
+                name: type === 'line' ? 'Vertical Line' : type === 'rect' ? 'Rounded Light' : 'Horizontal Rail',
+                top: 50, left: 50,
+                widthPx: type === 'line' ? 2 : type === 'rect' ? 10 : null,
+                widthPct: type === 'horizontal' ? 100 : null,
+                heightPct: type === 'horizontal' ? null : 20,
+                heightPx: type === 'horizontal' ? 2 : null,
+                radius: type === 'rect' ? 5 : 0,
+                blur: type === 'rect' ? 4 : 0,
+                color: type === 'horizontal' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)'
+            };
+            
+            // Adjust defaults for easy placing
+            if (type === 'line') el.color = 'rgba(0,0,0,0.4)';
+            if (type === 'horizontal') { el.left = 0; el.top = 55; }
+
+            elements.push(el);
+            selectedId = el.id;
+            render();
+        }
+
+        function deleteElement(id) {
+            elements = elements.filter(e => e.id !== id);
+            if (selectedId === id) selectedId = null;
+            render();
+        }
+
+        function selectElement(id) {
+            selectedId = id;
+            render();
+        }
+
+        function render() {
+            // Render DOM list
+            listDiv.innerHTML = '';
+            tracker.innerHTML = ''; // Clear canvas
+
+            elements.forEach(el => {
+                // List Item
+                let li = document.createElement('div');
+                li.className = 'list-item' + (el.id === selectedId ? ' selected' : '');
+                li.innerHTML = `<span>${el.id}. ${el.name}</span> <button class="delete-btn" onclick="event.stopPropagation(); deleteElement(${el.id})">&times;</button>`;
+                li.onclick = () => selectElement(el.id);
+                listDiv.appendChild(li);
+
+                // Canvas DOM Element
+                let domNode = document.createElement('div');
+                domNode.className = 'drawn-element' + (el.id === selectedId ? ' selected-in-dom' : '');
+                
+                // Construct CSS
+                domNode.style.top = el.top + '%';
+                domNode.style.left = el.left + '%';
+                
+                if (el.type === 'horizontal') {
+                    domNode.style.width = el.widthPct + '%';
+                    domNode.style.height = el.heightPx + 'px';
+                } else {
+                    domNode.style.width = el.widthPx + 'px';
+                    domNode.style.height = el.heightPct + '%'; // Using % so it scales responsively like the site
+                }
+                
+                domNode.style.borderRadius = el.radius + 'px';
+                domNode.style.background = el.color;
+                if (el.blur > 0) domNode.style.filter = `blur(${el.blur}px)`;
+                
+                tracker.appendChild(domNode);
+            });
+
+            // Update Inspector
+            if (selectedId) {
+                inspector.style.display = 'block';
+                let activeEl = elements.find(e => e.id === selectedId);
+                
+                document.getElementById('valTop').value = activeEl.top;
+                document.getElementById('valLeft').value = activeEl.left;
+                
+                // Show/hide correct width/height sliders
+                if (activeEl.type === 'horizontal') {
+                    document.getElementById('rowWidthPx').style.display = 'none';
+                    document.getElementById('rowHeightPct').style.display = 'none';
+                    document.getElementById('rowWidthPct').style.display = 'block';
+                    document.getElementById('rowHeightPx').style.display = 'block';
+                    document.getElementById('valWidthPct').value = activeEl.widthPct;
+                    document.getElementById('valHeightPx').value = activeEl.heightPx;
+                } else {
+                    document.getElementById('rowWidthPx').style.display = 'block';
+                    document.getElementById('rowHeightPct').style.display = 'block';
+                    document.getElementById('rowWidthPct').style.display = 'none';
+                    document.getElementById('rowHeightPx').style.display = 'none';
+                    document.getElementById('valWidthPx').value = activeEl.widthPx;
+                    document.getElementById('valHeightPct').value = activeEl.heightPct;
+                }
+                
+                document.getElementById('valRadius').value = activeEl.radius;
+                document.getElementById('valBlur').value = activeEl.blur;
+                document.getElementById('valColor').value = activeEl.color;
+                
+                updateLabels(activeEl);
+            } else {
+                inspector.style.display = 'none';
+            }
+        }
+
+        function updateProps() {
+            if (!selectedId) return;
+            let activeEl = elements.find(e => e.id === selectedId);
+            
+            activeEl.top = parseFloat(document.getElementById('valTop').value);
+            activeEl.left = parseFloat(document.getElementById('valLeft').value);
+            activeEl.radius = parseInt(document.getElementById('valRadius').value);
+            activeEl.blur = parseInt(document.getElementById('valBlur').value);
+            activeEl.color = document.getElementById('valColor').value;
+
+            if (activeEl.type === 'horizontal') {
+                activeEl.widthPct = parseFloat(document.getElementById('valWidthPct').value);
+                activeEl.heightPx = parseInt(document.getElementById('valHeightPx').value);
+            } else {
+                activeEl.widthPx = parseInt(document.getElementById('valWidthPx').value);
+                activeEl.heightPct = parseFloat(document.getElementById('valHeightPct').value);
+            }
+            
+            render(); // Redraw
+        }
+
+        function updateLabels(el) {
+            document.getElementById('lblTop').innerText = el.top + '%';
+            document.getElementById('lblLeft').innerText = el.left + '%';
+            document.getElementById('lblRadius').innerText = el.radius + 'px';
+            document.getElementById('lblBlur').innerText = el.blur + 'px';
+            if (el.type === 'horizontal') {
+                document.getElementById('lblWidthPct').innerText = el.widthPct + '%';
+                document.getElementById('lblHeightPx').innerText = el.heightPx + 'px';
+            } else {
+                document.getElementById('lblWidthPx').innerText = el.widthPx + 'px';
+                document.getElementById('lblHeightPct').innerText = el.heightPct + '%';
+            }
+        }
+
+        function generateCode() {
+            let htmlStr = `<div id="customBackgroundElements">\n`;
+            let cssStr = `/* Add this CSS */\n#customBackgroundElements {\n  position: absolute;\n  top: 0; left: 0; width: 100%; height: 100%; z-index: 1;\n  pointer-events: none;\n  opacity: 0;\n  transition: opacity 2s ease;\n}\n#customBackgroundElements.visible { opacity: 1; }\n`;
+            
+            elements.forEach((el, index) => {
+                let className = `custom-bg-el-${index}`;
+                htmlStr += `  <div class="${className}"></div>\n`;
+                
+                cssStr += `.${className} {\n  position: absolute;\n`;
+                cssStr += `  top: ${el.top}%;\n  left: ${el.left}%;\n`;
+                
+                if (el.type === 'horizontal') {
+                    cssStr += `  width: ${el.widthPct}%;\n  height: ${el.heightPx}px;\n`;
+                } else {
+                    cssStr += `  width: ${el.widthPx}px;\n  height: ${el.heightPct}%;\n`;
+                }
+                
+                if (el.radius > 0) cssStr += `  border-radius: ${el.radius}px;\n`;
+                if (el.color) cssStr += `  background: ${el.color};\n`;
+                if (el.blur > 0) cssStr += `  filter: blur(${el.blur}px);\n`;
+                cssStr += `}\n`;
+            });
+            htmlStr += `</div>\n\n`;
+
+            const outBox = document.getElementById('codeOutputBox');
+            outBox.textContent = `<!-- Add inside .photo-tracker -->\n${htmlStr}\n\n${cssStr}\n`;
+        }
+    </script>
+</body>
+</html>

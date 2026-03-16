@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light Editor — Prus Photography</title>
+    <style>
+        :root {
+            --bg-color: #C8C8C8;
+            --rail-color: rgba(0,0,0,0.5);
+            --light-color: rgba(255,255,255,0.6);
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: var(--font-sans);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        #toolbar {
+            width: 350px;
+            background: #252525;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        h1 { font-size: 1.25rem; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+        p { font-size: 0.9rem; color: #aaa; line-height: 1.5; margin: 0; }
+
+        .btn {
+            padding: 12px;
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .btn:hover { background: #555; transform: translateY(-1px); }
+        .btn-primary { background: #007aff; }
+        .btn-primary:hover { background: #0066d6; }
+
+        #cssOutput {
+            flex-grow: 1;
+            background: #111;
+            color: #4cd964;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        /* Canvas */
+        #canvasContainer {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: #111;
+        }
+
+        #canvas {
+            width: 1200px;
+            height: 800px;
+            background: var(--bg-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        /* Reference Lines */
+
+        .rail {
+            position: absolute;
+            top: 55%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--rail-color);
+        }
+
+        /* Light handles */
+        .light {
+            position: absolute;
+            width: 12px;
+            height: 80px;
+            background: var(--light-color);
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.4);
+            cursor: grab;
+            transition: box-shadow 0.2s ease;
+            filter: blur(4px);
+            z-index: 10;
+        }
+        .light:active { cursor: grabbing; box-shadow: 0 0 25px rgba(255,255,255,0.8); }
+        
+        /* Helper for clicking blurred elements */
+        .light::after {
+            content: '';
+            position: absolute;
+            inset: -10px;
+        }
+
+        /* Overlay images for guide */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.2;
+            mix-blend-mode: multiply;
+        }
+
+        .guide-label {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <h1>Light Editor</h1>
+        <p>Drag the 15 bars to position the background lights. Layout shows the #C8C8C8 background and panel lines.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-primary" onclick="copyCSS()">Copy CSS</button>
+            <button class="btn" onclick="randomize()">Randomize Positions</button>
+        </div>
+
+        <div id="cssOutput"></div>
+    </div>
+
+    <div id="canvasContainer">
+        <div id="canvas">
+            <div class="rail"></div>
+
+            <div class="guide-label">Workspace: 1200x800</div>
+            
+            <!-- Generate Lights -->
+            <div id="lightsLayer"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const lightsLayer = document.getElementById('lightsLayer');
+        const cssOutput = document.getElementById('cssOutput');
+        const NUM_LIGHTS = 15;
+        const lights = [];
+
+        // Initialize lights
+        for (let i = 0; i < NUM_LIGHTS; i++) {
+            const el = document.createElement('div');
+            el.className = 'light';
+            el.dataset.index = i + 5; // Matching el-5 to el-19
+            
+            // Random start positions above rail (top 0-35%)
+            const top = Math.random() * 30 + 5;
+            const left = Math.random() * 90 + 5;
+            
+            el.style.top = top + '%';
+            el.style.left = left + '%';
+            
+            lightsLayer.appendChild(el);
+            lights.push(el);
+            
+            makeDraggable(el);
+        }
+
+        updateCSS();
+
+        function makeDraggable(el) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            el.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+
+                let newTop = el.offsetTop - pos2;
+                let newLeft = el.offsetLeft - pos1;
+
+                // Percent conversion
+                let topPct = (newTop / canvas.offsetHeight) * 100;
+                let leftPct = (newLeft / canvas.offsetWidth) * 100;
+
+        /* Boundary check: Height is 20%, Rail is at 55%. Max top = 55 - 20 = 35% */
+        topPct = Math.max(0, Math.min(topPct, 35));
+        leftPct = Math.max(0, Math.min(leftPct, 98));
+
+                el.style.top = topPct.toFixed(1) + "%";
+                el.style.left = leftPct.toFixed(1) + "%";
+                
+                updateCSS();
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function updateCSS() {
+            let css = "/* Copy these values to index.css */\n\n";
+            lights.forEach(l => {
+                css += `.custom-bg-el-${l.dataset.index} {\n  position: absolute;\n  top: ${l.style.top};\n  left: ${l.style.left};\n  width: 10px;\n  height: 20%;\n  border-radius: 5px;\n  background: rgba(255,255,255,0.6);\n  filter: blur(4px);\n}\n`;
+            });
+            cssOutput.textContent = css;
+        }
+
+        function copyCSS() {
+            navigator.clipboard.writeText(cssOutput.textContent);
+            alert("CSS copied to clipboard!");
+        }
+
+        function randomize() {
+            lights.forEach(l => {
+                const top = Math.random() * 30 + 5;
+                const left = Math.random() * 90 + 5;
+                l.style.top = top + '%';
+                l.style.left = left + '%';
+            });
+            updateCSS();
+        }
+    </script>
+</body>
+</html>

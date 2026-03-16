@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pose Editor — Initial Stance</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    header span {
+      font-size: 12px;
+      color: #666;
+      font-weight: 400;
+    }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .preview-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      position: relative;
+      overflow: hidden; /* Keep trackers inside */
+    }
+
+    /* Base Photo Setup exactly like live site */
+    .photo-reveal {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    }
+    .photo-reveal-img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: center;
+      opacity: 0.35; /* Faint to serve as a guide */
+    }
+    .photo-tracker {
+      position: absolute;
+      /* Max bounds based on the container, not the viewport */
+      width: max(100%, 100vh * 1.443609);
+      height: max(100vh, 100% * 0.692708);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .man-container {
+      position: absolute;
+      top: 21%;
+      left: 37%;
+      height: 81.5%;
+      transform: translateX(-40%);
+    }
+
+    .preview-panel svg {
+      height: 100%;
+      width: auto;
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+    }
+
+    /* Pivot points — same as anim_run.css */
+    #runner {
+      transform-origin: 100px 180px;
+    }
+
+    #arm-back,
+    #arm-front {
+      transform-origin: 100px 60px;
+    }
+
+    #elbow-back,
+    #elbow-front {
+      transform-origin: 100px 110px;
+    }
+
+    #leg-back,
+    #leg-front {
+      transform-origin: 100px 140px;
+    }
+
+    #knee-back,
+    #knee-front {
+      transform-origin: 100px 200px;
+    }
+
+    #briefcase-group {
+      transform-origin: 100px 160px;
+    }
+
+    #torso-body {
+      transform-origin: 100px 90px;
+    }
+
+    /* ---- Controls Panel ---- */
+    .controls-panel {
+      width: 400px;
+      border-left: 1px solid #222;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #141414;
+    }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #555;
+      font-weight: 600;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+
+    .section-label:first-child {
+      margin-top: 0;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #1c1c1c;
+      border: 1px solid #262626;
+      transition: border-color 0.15s;
+    }
+
+    .slider-row:hover {
+      border-color: #3a3a3a;
+    }
+
+    .slider-row label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+      width: 120px;
+      flex-shrink: 0;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #555;
+      cursor: grab;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb:hover {
+      border-color: #888;
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+    }
+
+    .slider-row .val {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      width: 48px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---- Buttons ---- */
+    .actions {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, transform 0.1s;
+      text-align: center;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-secondary {
+      background: #262626;
+      color: #ccc;
+      border: 1px solid #333;
+    }
+
+    .btn-secondary:hover {
+      background: #2e2e2e;
+    }
+
+    .btn-play {
+      background: #2a6;
+      color: #fff;
+    }
+
+    .btn-play:hover {
+      background: #1a5;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #fff;
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .css-output {
+      margin-top: 12px;
+      background: #111;
+      border: 1px solid #262626;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #8f8;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Pose Editor</h1>
+    <span>Adjust limb rotations for the linger-phase initial stance</span>
+  </header>
+
+  <div class="layout">
+    <!-- Live SVG preview with photo overlay backdrop -->
+    <div class="preview-panel">
+      <!-- Background Photo -->
+      <div class="photo-reveal">
+        <img src="/original_logo_photo.JPG" class="photo-reveal-img" />
+      </div>
+
+      <!-- Coordinate Tracker -->
+      <div class="photo-tracker">
+        <div class="man-container">
+          <svg viewBox="-50 -20 300 400" xmlns="http://www.w3.org/2000/svg">
+            <g id="runner" stroke="#000000" fill="#000000" stroke-linecap="round" stroke-linejoin="round">
+
+              <g id="arm-back">
+                <line x1="100" y1="60" x2="100" y2="110" stroke-width="16" />
+                <g id="elbow-back">
+                  <line x1="100" y1="110" x2="100" y2="160" stroke-width="14" />
+                  <g id="briefcase-group">
+                    <path d="M 90 160 v -10 h 20 v 10" stroke-width="4" fill="none" />
+                    <rect x="75" y="160" width="50" height="35" rx="4" fill="#333" stroke="none" />
+                    <rect x="80" y="165" width="40" height="25" fill="#fff" stroke="none" />
+                    <line x1="85" y1="172" x2="115" y2="172" stroke="#ccc" stroke-width="2" />
+                    <line x1="85" y1="178" x2="110" y2="178" stroke="#ccc" stroke-width="2" />
+                    <line x1="85" y1="184" x2="115" y2="184" stroke="#ccc" stroke-width="2" />
+                    <g id="lid-hinge">
+                      <g id="lid-flapper">
+                        <rect x="75" y="160" width="50" height="35" rx="4" fill="#000" stroke="#000" stroke-width="1" />
+                        <rect x="95" y="160" width="10" height="5" fill="#e0e0e0" stroke="none" />
+                      </g>
+                    </g>
+                  </g>
+                </g>
+              </g>
+
+              <g id="leg-back">
+                <line x1="100" y1="140" x2="100" y2="200" stroke-width="20" />
+                <g id="knee-back">
+                  <line x1="100" y1="200" x2="100" y2="260" stroke-width="18" />
+                  <path d="M 90 255 L 90 270 L 98 270 L 98 267 L 108 267 L 112 270 L 124 270 Q 130 270 126 260 L 110 254 Z" stroke="none" />
+                </g>
+              </g>
+
+              <g id="head-torso">
+                <g id="torso-body">
+                  <path d="M 92 35 C 115 40, 120 80, 112 145 C 105 150, 95 150, 88 145 C 80 80, 85 40, 92 35 Z" stroke="none" />
+                </g>
+                <ellipse cx="100" cy="18" rx="14" ry="22" stroke="none" />
+              </g>
+
+              <g id="leg-front">
+                <line x1="100" y1="140" x2="100" y2="200" stroke-width="20" />
+                <g id="knee-front">
+                  <line x1="100" y1="200" x2="100" y2="260" stroke-width="18" />
+                  <path d="M 90 255 L 90 270 L 98 270 L 98 267 L 108 267 L 112 270 L 124 270 Q 130 270 126 260 L 110 254 Z" stroke="none" />
+                </g>
+              </g>
+
+              <g id="arm-front">
+                <line x1="100" y1="60" x2="100" y2="110" stroke-width="16" />
+                <g id="elbow-front">
+                  <line x1="100" y1="110" x2="100" y2="160" stroke-width="14" />
+                </g>
+              </g>
+
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-panel">
+
+      <div class="section-label">Container Scale & Position</div>
+      <div class="slider-row">
+        <label>Scale %</label>
+        <input type="range" id="heightSlider" min="20" max="150" value="81.5" step="0.5">
+        <span class="val" id="heightVal">81.5%</span>
+      </div>
+      <div class="slider-row">
+        <label>Top %</label>
+        <input type="range" id="topSlider" min="0" max="100" value="21" step="0.5">
+        <span class="val" id="topVal">21.0%</span>
+      </div>
+      <div class="slider-row">
+        <label>Left %</label>
+        <input type="range" id="leftSlider" min="0" max="100" value="37" step="0.5">
+        <span class="val" id="leftVal">37.0%</span>
+      </div>
+
+      <div class="section-label">Body Rotations</div>
+      <div class="slider-row">
+        <label>Body Lean</label>
+        <input type="range" min="-15" max="15" value="0" data-target="runner" />
+        <span class="val">0°</span>
+      </div>
+
+      <div class="section-label">Legs</div>
+      <div class="slider-row">
+        <label>Front Thigh</label>
+        <input type="range" min="-60" max="60" value="0" data-target="leg-front" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Front Knee</label>
+        <input type="range" min="-10" max="120" value="0" data-target="knee-front" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Back Thigh</label>
+        <input type="range" min="-60" max="60" value="0" data-target="leg-back" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Back Knee</label>
+        <input type="range" min="-10" max="120" value="0" data-target="knee-back" />
+        <span class="val">0°</span>
+      </div>
+
+      <div class="section-label">Arms</div>
+      <div class="slider-row">
+        <label>Front Arm</label>
+        <input type="range" min="-60" max="60" value="0" data-target="arm-front" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Front Elbow</label>
+        <input type="range" min="-90" max="30" value="0" data-target="elbow-front" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Back Arm</label>
+        <input type="range" min="-60" max="60" value="0" data-target="arm-back" />
+        <span class="val">0°</span>
+      </div>
+      <div class="slider-row">
+        <label>Back Elbow</label>
+        <input type="range" min="-90" max="30" value="0" data-target="elbow-back" />
+        <span class="val">0°</span>
+      </div>
+
+      <div class="section-label">Briefcase</div>
+      <div class="slider-row">
+        <label>Briefcase Swing</label>
+        <input type="range" min="-60" max="60" value="0" data-target="briefcase-group" />
+        <span class="val">0°</span>
+      </div>
+
+      <!-- CSS output -->
+      <div class="section-label">Generated CSS (initial transforms)</div>
+      <div class="css-output" id="cssOutput"></div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button class="btn btn-play" id="btnPreview">▶ Preview Run Animation</button>
+        <button class="btn btn-primary" id="btnCopy">📋 Copy CSS to Clipboard</button>
+        <button class="btn btn-secondary" id="btnReset">↺ Reset to Neutral</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+  <script>
+    const sliders = document.querySelectorAll('input[type="range"][data-target]');
+    const heightSlider = document.getElementById('heightSlider');
+    const topSlider = document.getElementById('topSlider');
+    const leftSlider = document.getElementById('leftSlider');
+    const manContainer = document.querySelector('.man-container');
+
+    const cssOutput = document.getElementById('cssOutput');
+    let isAnimating = false;
+
+    function applyRotation(targetId, deg) {
+      const el = document.getElementById(targetId);
+      if (el) el.style.transform = `rotate(${deg}deg)`;
+    }
+
+    function updateTransform() {
+        const h = heightSlider.value;
+        const t = topSlider.value;
+        const l = leftSlider.value;
+
+        // Update UI Labels
+        document.getElementById('heightVal').textContent = parseFloat(h).toFixed(1) + '%';
+        document.getElementById('topVal').textContent = parseFloat(t).toFixed(1) + '%';
+        document.getElementById('leftVal').textContent = parseFloat(l).toFixed(1) + '%';
+
+        // Apply directly to element
+        manContainer.style.height = h + '%';
+        manContainer.style.top = t + '%';
+        manContainer.style.left = l + '%';
+        
+        generateCSS();
+    }
+
+    function generateCSS() {
+      // 1. Container CSS
+      const h = heightSlider.value;
+      const t = topSlider.value;
+      const l = leftSlider.value;
+      
+      let cssText = `/* index.css */\n.man-container {\n  top: ${t}%;\n  left: ${l}%;\n  height: ${h}%;\n}\n\n`;
+      cssText += `/* anim_run.css - Initial Pose */\n`;
+
+      // 2. Pose CSS
+      sliders.forEach(slider => {
+        const target = slider.dataset.target;
+        const val = slider.value;
+        if (val !== "0") {
+          cssText += `#${target} { transform: rotate(${val}deg); }\n`;
+        }
+      });
+      cssOutput.textContent = cssText || "/* All at 0° (neutral stance) */";
+    }
+
+    // Attach Scale Listeners
+    heightSlider.addEventListener('input', updateTransform);
+    topSlider.addEventListener('input', updateTransform);
+    leftSlider.addEventListener('input', updateTransform);
+
+    // Wire up sliders
+    sliders.forEach(slider => {
+      const targetId = slider.dataset.target;
+      applyRotation(targetId, parseInt(slider.value));
+
+      slider.addEventListener('input', () => {
+        if (isAnimating) stopAnimation();
+        const deg = parseInt(slider.value);
+        slider.parentElement.querySelector('.val').textContent = deg + '°';
+        applyRotation(targetId, deg);
+        generateCSS();
+      });
+    });
+    generateCSS();
+
+    // --- Preview run animation ---
+    const btnPreview = document.getElementById('btnPreview');
+
+    // Keyframe definitions matching anim_run.css
+    const runAnimations = {
+      'runner': 'run-bounce-and-lean 0.8s linear infinite',
+      'leg-back': 'run-thigh-left 0.8s linear infinite',
+      'knee-back': 'run-knee-left 0.8s linear infinite',
+      'arm-back': 'run-arm-left 0.8s linear infinite',
+      'elbow-back': 'run-elbow-left 0.8s linear infinite',
+      'briefcase-group': 'swing-briefcase 0.8s linear infinite',
+      'leg-front': 'run-thigh-right 0.8s linear infinite',
+      'knee-front': 'run-knee-right 0.8s linear infinite',
+      'arm-front': 'run-arm-right 0.8s linear infinite',
+      'elbow-front': 'run-elbow-right 0.8s linear infinite',
+      'torso-body': 'shirt-flex 0.4s ease-in-out infinite alternate',
+      'lid-hinge': 'break-open 0.4s 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+      'lid-flapper': 'lid-swing 0.8s 0.75s linear infinite alternate',
+    };
+
+    function stopAnimation() {
+      isAnimating = false;
+      btnPreview.textContent = '▶ Preview Run Animation';
+      btnPreview.classList.remove('btn-secondary');
+      btnPreview.classList.add('btn-play');
+
+      // Restore slider poses
+      sliders.forEach(slider => {
+        const id = slider.dataset.target;
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.animation = '';
+          el.style.transform = `rotate(${slider.value}deg)`;
+        }
+      });
+      // Clear non-slider elements
+      ['torso-body', 'lid-hinge', 'lid-flapper'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.animation = '';
+      });
+    }
+
+    function startAnimation() {
+      isAnimating = true;
+      btnPreview.textContent = '■ Stop Animation';
+      btnPreview.classList.remove('btn-play');
+      btnPreview.classList.add('btn-secondary');
+
+      for (const [id, anim] of Object.entries(runAnimations)) {
+        const el = document.getElementById(id);
+        if (el) el.style.animation = anim;
+      }
+    }
+
+    btnPreview.addEventListener('click', () => {
+      if (isAnimating) stopAnimation();
+      else startAnimation();
+    });
+
+    // --- Copy CSS ---
+    document.getElementById('btnCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(cssOutput.textContent);
+        showToast('✅ CSS copied to clipboard!');
+      } catch {
+        showToast('⚠️ Could not copy — select CSS manually');
+      }
+    });
+
+    // --- Reset ---
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (isAnimating) stopAnimation();
+      sliders.forEach(slider => {
+        slider.value = 0;
+        slider.parentElement.querySelector('.val').textContent = '0°';
+        applyRotation(slider.dataset.target, 0);
+      });
+      generateCSS();
+      showToast('↺ Reset to neutral');
+    });
+
+    // --- Toast ---
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+  </script>
+
+  <!-- Inject the keyframes so preview works -->
+  <link rel="stylesheet" href="/css/anim_run.css" />
+</body>
+
+</html>
