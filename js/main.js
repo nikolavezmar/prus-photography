@@ -97,27 +97,28 @@ function getPaperStyle(index) {
 }
 
 function getPaperPhysics(index) {
+    const isMobile = window.innerWidth <= 768;
     if (index === 0) {
         // Slow floater — takes ~4s (1 extra second)
         return {
-            vx: (Math.random() - 0.5) * 40,
+            vx: (Math.random() - 0.5) * (isMobile ? 20 : 40),
             vy: -(150 + Math.random() * 50),
             gravity: 120 + Math.random() * 30,
             spinRate: (40 + Math.random() * 60) * (Math.random() < 0.5 ? 1 : -1),
             scaleSpeed: 0.8,
             drag: 0.45 + Math.random() * 0.15,
-            swayAmp: 50 + Math.random() * 60,
+            swayAmp: isMobile ? 20 + Math.random() * 30 : 50 + Math.random() * 60,
             swayFreq: 1.5 + Math.random() * 1,
         };
     }
     return {
-        vx: (Math.random() - 0.5) * 120,
-        vy: -(200 + Math.random() * 200),
+        vx: (Math.random() - 0.5) * (isMobile ? 60 : 120),
+        vy: -(200 + Math.random() * (isMobile ? 100 : 200)),
         gravity: 400 + Math.random() * 200,
         spinRate: (80 + Math.random() * 200) * (Math.random() < 0.5 ? 1 : -1),
         scaleSpeed: 1.5,
         drag: 0.2 + Math.random() * 0.25,
-        swayAmp: 30 + Math.random() * 70,
+        swayAmp: isMobile ? 15 + Math.random() * 30 : 30 + Math.random() * 70,
         swayFreq: 2 + Math.random() * 2,
     };
 }
@@ -171,8 +172,9 @@ function animateSinglePaper(p, startX, startY, physics, startRot, groundY) {
 
         const flip = Math.cos(totalTime * physics.swayFreq * Math.PI * 1.5);
         const sx = scale * (0.4 + 0.6 * Math.abs(flip));
+        const clampedX = Math.max(-10, Math.min(x, window.innerWidth - 20));
         p.style.transform = `rotate(${rot}deg) scale(${sx.toFixed(2)}, ${scale.toFixed(2)})`;
-        p.style.left = x + 'px';
+        p.style.left = clampedX + 'px';
         p.style.top = y + 'px';
 
         if (y >= groundY) {
