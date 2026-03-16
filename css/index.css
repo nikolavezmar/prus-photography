@@ -376,8 +376,8 @@ h3 {
    FOOTER (home)
    ================================================ */
 .home-footer {
-  background: #fff;
-  border-top: 1px solid #e0e0e0
+  background: var(--bg-primary);
+  border-top: none;
 }
 
 /* ================================================

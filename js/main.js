@@ -31,21 +31,26 @@ const logoText = document.getElementById('logoText');
 
 // --- Final card grid positions ---
 function getFinalPositions() {
+    const NUM_CARDS = 8;
     const vw = window.innerWidth, vh = window.innerHeight;
     const maxW = Math.min(1400, vw - 64);
     const gap = 28;
     const cols = vw > 768 ? 4 : vw > 480 ? 2 : 1;
+    const rows = Math.ceil(NUM_CARDS / cols);
     const cardW = (maxW - gap * (cols - 1)) / cols;
     const cardH = cardW * (4 / 3);
     const gx = (vw - maxW) / 2, gy = vh * 0.28;
     const pos = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < NUM_CARDS; i++) {
         pos.push({
             x: gx + (i % cols) * (cardW + gap),
             y: gy + Math.floor(i / cols) * (cardH + gap),
             w: cardW, h: cardH
         });
     }
+    const totalGridHeight = gy + rows * cardH + (rows - 1) * gap + 80;
+    const introScene = document.getElementById('introScene');
+    if (introScene) introScene.style.minHeight = totalGridHeight + 'px';
     return pos;
 }
 

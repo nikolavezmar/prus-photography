@@ -351,9 +351,9 @@ h3 {
 /* --- Man container: positioned by JS to match photo --- */
 .man-container {
   position: absolute;
-  top: 23%;
+  top: 25%;
   left: 39%;
-  height: 86%;
+  height: 82%;
   transform: translateX(-40%);
   z-index: 25;
   pointer-events: none;
@@ -592,8 +592,8 @@ h3 {
    FOOTER (home)
    ================================================ */
 .home-footer {
-  background: #fff;
-  border-top: 1px solid #e0e0e0
+  background: var(--bg-primary);
+  border-top: none;
 }
 
 /* ================================================
