@@ -220,7 +220,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  --bg-primary: #C8C8C8;
+  --bg-primary: #3a3a3a;
   --bg-secondary: #c0c0c0;
   --bg-tertiary: #b8b8b8;
   --bg-card: #d0d0d0;
@@ -563,6 +563,10 @@ h3 {
 .home-footer {
   background: #3a3a3a;
   border-top: none;
+}
+
+.site-footer.home-footer {
+  padding: var(--space-md) 0;
 }
 
 /* ================================================

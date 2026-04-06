@@ -385,7 +385,6 @@ function zoomToGround() {
                 if (introScene) {
                     const lastCard = finals[finals.length - 1];
                     introScene.style.minHeight = (lastCard.y + lastCard.h + 80) + 'px';
-                    introScene.style.overflow = 'visible';
                 }
             }, 300);
         }
