@@ -4,12 +4,17 @@
  * Animation timeline:
  * 1) Man lingers for 1.5s on photo background
  * 2) Man runs across screen, papers drop from briefcase
- * 3) Papers land on ground, wind blows them to small positions on the white wall
- * 4) Brief pause, then camera zooms into the wall — cards grow to full size
- * 5) Nav bar fades in
+ * 3) Papers land scattered on the ground
+ * 4) Camera zooms down to the floor — POV looking at papers on the ground
+ * 5) Papers arrange into a card grid on the dark floor, nav fades in
  */
 import { drawWatermarked, disableImageSaving } from './watermark.js';
 disableImageSaving();
+
+// Force scroll to top immediately
+window.scrollTo(0, 0);
+document.documentElement.scrollTop = 0;
+document.body.scrollTop = 0;
 
 const categories = [
     { name: 'Portraits', desc: 'Character & emotion', link: '/gallery.html?cat=portraits' },
@@ -25,7 +30,6 @@ const categories = [
 const introScene = document.getElementById('introScene');
 const manContainer = document.getElementById('manContainer');
 const papersLayer = document.getElementById('papersLayer');
-const windContainer = document.getElementById('windContainer');
 const mainNav = document.getElementById('mainNav');
 const logoText = document.getElementById('logoText');
 const photoTracker = document.getElementById('photoTracker');
@@ -51,10 +55,6 @@ function getFinalPositions() {
             w: cardW, h: cardH
         });
     }
-    // Ensure the intro scene is tall enough to fit all card rows + padding
-    const totalGridHeight = gy + rows * cardH + (rows - 1) * gap + 80;
-    const introScene = document.getElementById('introScene');
-    if (introScene) introScene.style.minHeight = totalGridHeight + 'px';
     return pos;
 }
 
@@ -134,6 +134,32 @@ function getPaperPhysics(index) {
 let groundedCount = 0;
 let onAllPapersGrounded = null;
 
+function generateCrumpledBackground() {
+    const seed = Math.floor(Math.random() * 100000);
+    // Depth of the wrinkles
+    const scale = 2.5 + Math.random() * 2; 
+    // Randomize light direction slightly from the top
+    const azimuth = 45 + Math.random() * 90; 
+    // Randomize noise frequencies for different scale of wrinkles
+    const bfX = (0.01 + Math.random() * 0.015).toFixed(4);
+    const bfY = (0.01 + Math.random() * 0.015).toFixed(4);
+    
+    // Create an SVG with fractal noise and diffuse lighting, giving a highly realistic crumpled paper 3D effect.
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='600'>
+      <filter id='paper'>
+        <feTurbulence type='fractalNoise' baseFrequency='${bfX} ${bfY}' numOctaves='5' seed='${seed}' result='noise' />
+        <feDiffuseLighting in='noise' lighting-color='#fdfcfb' surfaceScale='${scale}'>
+          <feDistantLight azimuth='${azimuth}' elevation='45' />
+        </feDiffuseLighting>
+      </filter>
+      <rect width='100%' height='100%' filter='url(#paper)' />
+    </svg>`;
+    
+    const encodedSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    // Return CSS shorthand for background
+    return `url("${encodedSvg}") center/cover no-repeat`;
+}
+
 function paperLanded(p, x, groundY) {
     p.style.top = groundY + 'px';
     p.style.left = x + 'px';
@@ -142,6 +168,7 @@ function paperLanded(p, x, groundY) {
     const finalRot = parseFloat(p.style.transform.match(/rotate\(([-\d.]+)/)?.[1] || 0) % 360;
     p.style.transform = `rotate(${finalRot}deg) scale(1)`;
     setTimeout(() => {
+        p.style.background = generateCrumpledBackground();
         p.classList.add('grounded');
         p.dataset.groundX = x.toString();
         p.dataset.groundY = groundY.toString();
@@ -235,276 +262,135 @@ function dropAllPapers() {
     }
 }
 
-// --- Wind swirls ---
-function showWindSwirls() {
-    if (!windContainer) return;
-    windContainer.classList.add('visible');
-    [10, 25, 40, 60, 80, 15, 35, 55, 75, 90, 20, 50, 80].forEach((yVal, i) => {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 220 30');
-        svg.setAttribute('width', Math.min(600, window.innerWidth));
-        svg.setAttribute('height', '50');
-        svg.classList.add('wind-swirl');
-        const angle = Math.random() * 360;
-        svg.style.top = (Math.random() * 100) + '%';
-        svg.style.left = (Math.random() * 100) + '%';
-        svg.style.transform = `rotate(${angle}deg)`;
-        svg.style.setProperty('--ws-dur', (1.0 + Math.random() * 0.5) + 's');
-        svg.style.setProperty('--ws-delay', (i * 0.05) + 's');
-        const w = 4 + Math.random() * 3;
-        const p1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        p1.setAttribute('d', `M0,15 Q60,${15 - w} 110,15 T220,15`);
-        p1.setAttribute('fill', 'none');
-        p1.setAttribute('stroke', 'rgba(0,0,0,0.3)');
-        p1.setAttribute('stroke-width', '2.5');
-        p1.setAttribute('stroke-linecap', 'round');
-        p1.setAttribute('opacity', '0.6');
-        svg.appendChild(p1);
-        windContainer.appendChild(svg);
-        requestAnimationFrame(() => svg.classList.add('active'));
-    });
-    setTimeout(() => {
-        windContainer.classList.add('fade-out');
-        setTimeout(() => { windContainer.innerHTML = ''; }, 800);
-    }, 2800);
-}
+// --- Zoom to ground: camera drops to floor POV, papers arrange into grid ---
+function zoomToGround() {
+    const finals = getFinalPositions();
+    const rots = [-2.5, 1.8, -1.2, 3, -1.5, 0.8, -2, 1.5];
+    const duration = 2500;
 
-// --- Cubic Bezier interpolation ---
-function cubicBezier(p0, p1, p2, p3, t) {
-    const u = 1 - t;
-    return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
-}
-
-// --- Wall grid positions (small cards pinned to the white wall) ---
-function getWallPositions() {
-    const NUM_CARDS = 8;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const cols = vw > 768 ? 4 : vw > 480 ? 2 : 1;
-    const rows = Math.ceil(NUM_CARDS / cols);
-    const cardW = vw > 768 ? 80 : 60;
-    const cardH = cardW * (4 / 3);
-    const gap = vw > 768 ? 12 : 8;
-    const gridW = cols * cardW + (cols - 1) * gap;
-    const gridH = rows * cardH + (rows - 1) * gap;
-    const startX = (vw - gridW) / 2;
-    const startY = vh * 0.28 - gridH / 2;
-    const pos = [];
-    for (let i = 0; i < NUM_CARDS; i++) {
-        pos.push({
-            x: startX + (i % cols) * (cardW + gap),
-            y: startY + Math.floor(i / cols) * (cardH + gap),
-            w: cardW, h: cardH,
+    // Capture start positions and strip .grounded BEFORE animation so
+    // !important styles don't fight inline styles and cause a flash
+    const startPositions = [];
+    for (let i = 0; i < 8; i++) {
+        const p = papers[i];
+        if (!p) continue;
+        const curRot = parseFloat(p.style.transform.match(/rotate\(([-\d.]+)/)?.[1] || 0);
+        startPositions.push({
+            x: parseFloat(p.dataset.groundX) || parseFloat(p.style.left),
+            y: parseFloat(p.dataset.groundY) || parseFloat(p.style.top),
+            w: parseFloat(p.dataset.paperWidth) || 30,
+            h: parseFloat(p.dataset.paperHeight) || 40,
+            rot: curRot,
+        });
+        // Remove grounded class and lock current appearance with inline styles
+        // so there's no visual change yet
+        p.classList.remove('grounded');
+        Object.assign(p.style, {
+            border: '1px solid rgba(0,0,0,0.1)',
+            boxShadow: '1px 2px 4px rgba(0,0,0,0.12)',
+            transition: 'none',
         });
     }
-    return pos;
-}
 
-// --- Blow papers from ground to wall positions ---
-let onAllCardsOnWall = null;
-function blowPapersToWall() {
-    const wallPos = getWallPositions();
-    const rots = [-1.5, 1.2, -0.8, 2, -1, 0.5, -1.8, 1];
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let cardsSettled = 0;
+    // Fade out extra (non-card) papers
+    for (let i = 8; i < papers.length; i++) {
+        const p = papers[i];
+        if (!p) continue;
+        p.style.transition = 'opacity 1s ease';
+        p.style.opacity = '0';
+        setTimeout(() => { p.style.display = 'none'; }, 1000);
+    }
 
-    papers.forEach((p, i) => {
-        const delay = i * 30;
-        const gx = parseFloat(p.dataset.groundX) || parseFloat(p.style.left);
-        const gy = parseFloat(p.dataset.groundY) || parseFloat(p.style.top);
-        const isCard = i < 8;
-        const f = isCard ? wallPos[i] : null;
+    let sumX = 0, sumY = 0, validCount = 0;
+    for (let i = 0; i < papers.length; i++) {
+        const p = papers[i];
+        if (!p) continue;
+        const px = parseFloat(p.dataset.groundX) || parseFloat(p.style.left) || 0;
+        const py = parseFloat(p.dataset.groundY) || parseFloat(p.style.top) || 0;
+        const pw = parseFloat(p.dataset.paperWidth) || 30;
+        const ph = parseFloat(p.dataset.paperHeight) || 40;
+        sumX += px + pw / 2;
+        sumY += py + ph / 2;
+        validCount++;
+    }
+    if (validCount > 0 && introBg) {
+        introBg.style.transformOrigin = `${sumX / validCount}px ${sumY / validCount}px`;
+    }
 
-        setTimeout(() => {
-            p.classList.remove('grounded');
-            p.style.animation = 'none';
-            p.classList.add('transitioning');
-
-            const pW = parseFloat(p.dataset.paperWidth) || 30;
-            const pH = parseFloat(p.dataset.paperHeight) || 26;
-            const pBR = p.dataset.paperBorderRadius || '0';
-            const pClip = p.dataset.paperClipPath || 'none';
-            const pBG = p.dataset.paperBackground || '#e8e8e8';
-            const pShadow = p.dataset.paperBoxShadow || '1px 2px 3px rgba(0,0,0,0.25)';
-
-            if (!isCard) {
-                // Extra papers: blow upward and fade out
-                const blowX = gx + (Math.random() - 0.5) * vw * 0.8;
-                const blowY = -100 - Math.random() * 200;
-                const duration = 2000 + Math.random() * 1500;
-                const startTime = performance.now();
-                const startRot = Math.random() * 360;
-
-                function animateBlow(now) {
-                    const elapsed = now - startTime;
-                    let t = Math.min(elapsed / duration, 1);
-                    const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-                    const curX = gx + (blowX - gx) * easeT;
-                    const curY = gy + (blowY - gy) * easeT;
-                    const rot = startRot + easeT * 720;
-                    const opacity = 1 - easeT;
-
-                    Object.assign(p.style, {
-                        left: curX + 'px', top: curY + 'px',
-                        transform: `rotate(${rot}deg)`,
-                        opacity: opacity, transition: 'none',
-                        border: '1px solid rgba(0,0,0,0.08)',
-                        boxShadow: pShadow,
-                    });
-
-                    if (t < 1) {
-                        requestAnimationFrame(animateBlow);
-                    } else {
-                        p.style.display = 'none';
-                    }
-                }
-                requestAnimationFrame(animateBlow);
-                return;
-            }
-
-            // Card papers: swirl to wall position (small)
-            const cp1x = gx + (Math.random() - 0.3) * vw * 0.5;
-            const cp1y = gy - vh * (0.3 + Math.random() * 0.4);
-            const cp2x = f.x + (Math.random() - 0.5) * vw * 0.4;
-            const cp2y = f.y - vh * (0.1 + Math.random() * 0.3);
-
-            const duration = 3800 + Math.random() * 600;
-            const startTime = performance.now();
-            const startRot = Math.random() * 360;
-            const orbitRadius = vw * (0.22 + Math.random() * 0.18);
-            const orbitSpeed = 3.5 + Math.random() * 2;
-            const orbitPhase = i * Math.PI * 0.25;
-
-            const MORPH_START = 0.75;
-
-            function animateSwirl(now) {
-                const elapsed = now - startTime;
-                let t = Math.min(elapsed / duration, 1);
-                const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-                let curX = cubicBezier(gx, cp1x, cp2x, f.x, easeT);
-                let curY = cubicBezier(gy, cp1y, cp2y, f.y, easeT);
-
-                const orbitFade = Math.sin(easeT * Math.PI);
-                const orbitAngle = easeT * Math.PI * 2 * orbitSpeed + orbitPhase;
-                curX += Math.cos(orbitAngle) * orbitRadius * orbitFade;
-                curY += Math.sin(orbitAngle) * orbitRadius * orbitFade * 0.6;
-
-                let w, h, br, bg, rot, shadow, border, clipPath;
-
-                if (easeT < MORPH_START) {
-                    w = pW; h = pH;
-                    br = pBR; clipPath = pClip;
-                    bg = pBG; shadow = pShadow;
-                    border = '1px solid rgba(0,0,0,0.08)';
-                    rot = startRot + easeT * 1080;
-                } else {
-                    const localT = (easeT - MORPH_START) / (1 - MORPH_START);
-                    const s = localT * localT * (3 - 2 * localT);
-
-                    w = pW + (f.w - pW) * s;
-                    h = pH + (f.h - pH) * s;
-                    br = s > 0.5 ? '4px' : pBR;
-                    clipPath = s > 0.3 ? 'none' : pClip;
-                    bg = s > 0.5 ? '#f5f0e8' : pBG;
-                    shadow = s > 0.5 ? `1px 1px 4px rgba(0,0,0,0.15)` : pShadow;
-                    border = s > 0.5 ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(0,0,0,0.08)';
-                    rot = startRot + MORPH_START * 1080 + (rots[i] - (startRot + MORPH_START * 1080) % 360) * s;
-                }
-
-                Object.assign(p.style, {
-                    left: curX + 'px', top: curY + 'px',
-                    width: w + 'px', height: h + 'px',
-                    borderRadius: br, background: bg,
-                    clipPath: clipPath,
-                    transform: `rotate(${rot}deg)`,
-                    boxShadow: shadow, border: border,
-                    transition: 'none',
-                });
-
-                if (t < 1) {
-                    requestAnimationFrame(animateSwirl);
-                } else {
-                    Object.assign(p.style, {
-                        left: f.x + 'px', top: f.y + 'px',
-                        width: f.w + 'px', height: f.h + 'px',
-                        background: '#f5f0e8', borderRadius: '4px',
-                        clipPath: 'none',
-                        transform: `rotate(${rots[i]}deg)`,
-                        boxShadow: '1px 1px 4px rgba(0,0,0,0.15)',
-                        border: '1px solid rgba(0,0,0,0.12)',
-                    });
-                    p.classList.remove('transitioning');
-                    cardsSettled++;
-                    if (cardsSettled >= 8 && onAllCardsOnWall) onAllCardsOnWall();
-                }
-            }
-            requestAnimationFrame(animateSwirl);
-        }, delay);
+    // Start everything on the next frame so the DOM settles first
+    let loopStart = null;
+    requestAnimationFrame((now) => {
+        if (introBg) introBg.classList.add('zoom-to-ground');
+        loopStart = now;
+        requestAnimationFrame(animateArrange);
     });
-}
 
-// --- Zoom from wall to full card view ---
-function zoomFromWall() {
-    const wallPos = getWallPositions();
-    const finals = getFinalPositions();
-    const rots = [-1.5, 1.2, -0.8, 2, -1, 0.5, -1.8, 1];
-    const duration = 2000;
-
-    // Zoom + fade the background photo into the wall
-    if (introBg) introBg.classList.add('zoom-to-wall');
-
-    // Animate each card from wall size to final card size
-    const startTime = performance.now();
-
-    function animateZoom(now) {
-        const elapsed = now - startTime;
+    function animateArrange(now) {
+        const elapsed = now - loopStart;
         let t = Math.min(elapsed / duration, 1);
-        const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        // Ease-in-out cubic
+        const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
         for (let i = 0; i < 8; i++) {
             const p = papers[i];
             if (!p) continue;
-            const w = wallPos[i];
+            const s = startPositions[i];
             const f = finals[i];
 
-            const curX = w.x + (f.x - w.x) * easeT;
-            const curY = w.y + (f.y - w.y) * easeT;
-            const curW = w.w + (f.w - w.w) * easeT;
-            const curH = w.h + (f.h - w.h) * easeT;
+            const curX = s.x + (f.x - s.x) * easeT;
+            const curY = s.y + (f.y - s.y) * easeT;
+            const curW = s.w + (f.w - s.w) * easeT;
+            const curH = s.h + (f.h - s.h) * easeT;
+            const curRot = s.rot + (rots[i] - s.rot) * easeT;
+
+            // Smoothly transition paper appearance toward final card look
+            const bgR = Math.round(240 + (245 - 240) * easeT);
+            const bgG = Math.round(240 + (240 - 240) * easeT);
+            const bgB = Math.round(240 + (232 - 240) * easeT);
 
             Object.assign(p.style, {
                 left: curX + 'px', top: curY + 'px',
                 width: curW + 'px', height: curH + 'px',
-                transform: `rotate(${rots[i]}deg)`,
+                transform: `rotate(${curRot}deg)`,
+                clipPath: 'none',
+                borderRadius: (4 + 2 * easeT) + 'px',
+                border: `1px solid rgba(0,0,0,${0.1 + 0.05 * easeT})`,
+                boxShadow: `${1 + easeT}px ${2 + 2 * easeT}px ${4 + 4 * easeT}px rgba(0,0,0,${0.1 + 0.05 * easeT})`,
                 transition: 'none',
             });
         }
 
         if (t < 1) {
-            requestAnimationFrame(animateZoom);
+            requestAnimationFrame(animateArrange);
         } else {
             for (let i = 0; i < 8; i++) {
                 const p = papers[i];
                 if (!p) continue;
                 const f = finals[i];
+                // Set final state that exactly matches .final CSS so adding
+                // the class causes zero visual change
                 Object.assign(p.style, {
                     left: f.x + 'px', top: f.y + 'px',
                     width: f.w + 'px', height: f.h + 'px',
-                    background: '', borderRadius: '6px',
+                    borderRadius: '6px',
                     transform: `rotate(${rots[i]}deg)`,
+                    // Clear inline overrides so .final CSS takes over (except background)
                     boxShadow: '', border: '',
                 });
                 p.classList.add('final');
             }
 
+            // Now that cards are in place, size the scene and allow scrolling
             setTimeout(() => {
-                if (introScene) introScene.style.overflow = 'visible';
+                if (introScene) {
+                    const lastCard = finals[finals.length - 1];
+                    introScene.style.minHeight = (lastCard.y + lastCard.h + 80) + 'px';
+                    introScene.style.overflow = 'visible';
+                }
             }, 300);
         }
     }
-    requestAnimationFrame(animateZoom);
+    requestAnimationFrame(animateArrange);
 }
 
 
@@ -658,69 +544,18 @@ function startMainAnimation() {
         setTimeout(() => { manContainer.style.display = 'none'; }, 450);
     }, MAN_EXIT);
 
-    // Wind starts only after ALL papers have settled (including the slow floater)
+    // After ALL papers have settled on the ground, zoom down to view them
     onAllPapersGrounded = () => {
-        showWindSwirls();
-        blowPapersToWall();
-
-        // After cards settle on the wall, pause briefly then zoom in
-        onAllCardsOnWall = () => {
+        // Brief pause to see papers scattered, then zoom to ground POV
+        setTimeout(() => {
+            zoomToGround();
+            // Show nav after zoom completes
             setTimeout(() => {
-                zoomFromWall();
-                // Show nav after zoom completes
-                setTimeout(() => {
-                    if (mainNav) mainNav.classList.add('visible');
-                }, 2200);
-            }, 800);
-        };
-
-        if (logoText) {
-            logoText.classList.add('blown');
-            logoText.style.marginTop = '0';
-
-            const textStartX = window.innerWidth / 2;
-            const textStartY = window.innerHeight / 2 + 160;
-            const textEndX = window.innerWidth / 2;
-            const textEndY = 80;
-            const textDuration = 4000;
-            const textStartTime = performance.now();
-            const textOrbitRadius = window.innerWidth * 0.3;
-
-            function animateText(now) {
-                const elapsed = now - textStartTime;
-                let t = Math.min(elapsed / textDuration, 1);
-                const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-                let curX = textStartX + (textEndX - textStartX) * easeT;
-                let curY = textStartY + (textEndY - textStartY) * easeT;
-
-                const orbitFade = Math.sin(easeT * Math.PI);
-                const orbitAngle = easeT * Math.PI * 2 * 3;
-                curX += Math.cos(orbitAngle) * textOrbitRadius * orbitFade;
-                curY += Math.sin(orbitAngle) * textOrbitRadius * orbitFade * 0.5;
-
-                const rot = Math.sin(orbitAngle) * 20 * orbitFade;
-                const scale = 1 - 0.1 * orbitFade;
-
-                logoText.style.top = curY + 'px';
-                logoText.style.left = curX + 'px';
-                logoText.style.transform = `translate(-50%, 0) rotate(${rot}deg) scale(${scale})`;
-
-                if (t < 1) {
-                    requestAnimationFrame(animateText);
-                } else {
-                    logoText.style.top = '80px';
-                    logoText.style.left = '50%';
-                    logoText.style.transform = 'translate(-50%, 0) rotate(0deg) scale(1)';
-                }
-            }
-            requestAnimationFrame(animateText);
-        }
+                if (mainNav) mainNav.classList.add('visible');
+            }, 2800);
+        }, 600);
     };
 }
-
-// Scroll to top on load so animation starts at the beginning
-window.scrollTo(0, 0);
 
 // Kick it off
 startMainAnimation();
