@@ -1,14 +1,12 @@
 /**
  * main.js — Prus Photography (Opening Experiment)
- * 
+ *
  * Animation timeline:
- * 0) Original logo photo shows full-screen for 1s, then fades out (1s fade)
- * 0.5) Light panels and rail fade in during the photo fade
- * 1) Man stands still for 2.5s (linger)
- * 2) .running class added → CSS keyframes animate limbs, man slides off-screen
- * 3) Papers drop from briefcase with physics arcs
- * 4) Wind blows → papers fly to final card grid positions
- * 5) Logo text spirals to top, nav bar fades in
+ * 1) Man lingers for 1.5s on photo background
+ * 2) Man runs across screen, papers drop from briefcase
+ * 3) Papers land on ground, wind blows them to small positions on the white wall
+ * 4) Brief pause, then camera zooms into the wall — cards grow to full size
+ * 5) Nav bar fades in
  */
 import { drawWatermarked, disableImageSaving } from './watermark.js';
 disableImageSaving();
@@ -30,9 +28,8 @@ const papersLayer = document.getElementById('papersLayer');
 const windContainer = document.getElementById('windContainer');
 const mainNav = document.getElementById('mainNav');
 const logoText = document.getElementById('logoText');
-const photoReveal = document.getElementById('photoReveal');
 const photoTracker = document.getElementById('photoTracker');
-const customBackgroundElements = document.getElementById('customBackgroundElements');
+const introBg = document.getElementById('introBg');
 
 // --- Final card grid positions ---
 function getFinalPositions() {
@@ -101,7 +98,7 @@ function getPaperStyle(index) {
         borderRadius: '1px',
         clipPath: clipPath,
         background: `linear-gradient(${angle}deg, #fff, #f6f6f6 30%, #eee 70%, #f4f4f4)`,
-        boxShadow: `1px 2px 4px rgba(0,0,0,0.18)`,
+        boxShadow: `1px 2px 4px rgba(0,0,0,0.1)`,
     };
 }
 
@@ -278,18 +275,45 @@ function cubicBezier(p0, p1, p2, p3, t) {
     return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
 }
 
-// --- Blow papers from ground to final card positions ---
-function blowPapersToFinal() {
-    const finals = getFinalPositions();
+// --- Wall grid positions (small cards pinned to the white wall) ---
+function getWallPositions() {
+    const NUM_CARDS = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cols = vw > 768 ? 4 : vw > 480 ? 2 : 1;
+    const rows = Math.ceil(NUM_CARDS / cols);
+    const cardW = vw > 768 ? 80 : 60;
+    const cardH = cardW * (4 / 3);
+    const gap = vw > 768 ? 12 : 8;
+    const gridW = cols * cardW + (cols - 1) * gap;
+    const gridH = rows * cardH + (rows - 1) * gap;
+    const startX = (vw - gridW) / 2;
+    const startY = vh * 0.28 - gridH / 2;
+    const pos = [];
+    for (let i = 0; i < NUM_CARDS; i++) {
+        pos.push({
+            x: startX + (i % cols) * (cardW + gap),
+            y: startY + Math.floor(i / cols) * (cardH + gap),
+            w: cardW, h: cardH,
+        });
+    }
+    return pos;
+}
+
+// --- Blow papers from ground to wall positions ---
+let onAllCardsOnWall = null;
+function blowPapersToWall() {
+    const wallPos = getWallPositions();
     const rots = [-1.5, 1.2, -0.8, 2, -1, 0.5, -1.8, 1];
     const vw = window.innerWidth, vh = window.innerHeight;
+    let cardsSettled = 0;
 
     papers.forEach((p, i) => {
         const delay = i * 30;
         const gx = parseFloat(p.dataset.groundX) || parseFloat(p.style.left);
         const gy = parseFloat(p.dataset.groundY) || parseFloat(p.style.top);
         const isCard = i < 8;
-        const f = isCard ? finals[i] : null;
+        const f = isCard ? wallPos[i] : null;
 
         setTimeout(() => {
             p.classList.remove('grounded');
@@ -339,7 +363,7 @@ function blowPapersToFinal() {
                 return;
             }
 
-            // Card papers: swirl to final position
+            // Card papers: swirl to wall position (small)
             const cp1x = gx + (Math.random() - 0.3) * vw * 0.5;
             const cp1y = gy - vh * (0.3 + Math.random() * 0.4);
             const cp2x = f.x + (Math.random() - 0.5) * vw * 0.4;
@@ -381,11 +405,11 @@ function blowPapersToFinal() {
 
                     w = pW + (f.w - pW) * s;
                     h = pH + (f.h - pH) * s;
-                    br = s > 0.5 ? '6px' : pBR;
+                    br = s > 0.5 ? '4px' : pBR;
                     clipPath = s > 0.3 ? 'none' : pClip;
-                    bg = s > 0.5 ? '' : pBG;
-                    shadow = s > 0.5 ? `${3 * s}px ${3 * s}px 0 #111` : pShadow;
-                    border = s > 0.5 ? '2px solid #111' : '1px solid rgba(0,0,0,0.08)';
+                    bg = s > 0.5 ? '#f5f0e8' : pBG;
+                    shadow = s > 0.5 ? `1px 1px 4px rgba(0,0,0,0.15)` : pShadow;
+                    border = s > 0.5 ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(0,0,0,0.08)';
                     rot = startRot + MORPH_START * 1080 + (rots[i] - (startRot + MORPH_START * 1080) % 360) * s;
                 }
 
@@ -405,13 +429,15 @@ function blowPapersToFinal() {
                     Object.assign(p.style, {
                         left: f.x + 'px', top: f.y + 'px',
                         width: f.w + 'px', height: f.h + 'px',
-                        background: '', borderRadius: '6px',
+                        background: '#f5f0e8', borderRadius: '4px',
                         clipPath: 'none',
                         transform: `rotate(${rots[i]}deg)`,
-                        boxShadow: '', border: '',
+                        boxShadow: '1px 1px 4px rgba(0,0,0,0.15)',
+                        border: '1px solid rgba(0,0,0,0.12)',
                     });
                     p.classList.remove('transitioning');
-                    p.classList.add('final');
+                    cardsSettled++;
+                    if (cardsSettled >= 8 && onAllCardsOnWall) onAllCardsOnWall();
                 }
             }
             requestAnimationFrame(animateSwirl);
@@ -419,28 +445,69 @@ function blowPapersToFinal() {
     });
 }
 
+// --- Zoom from wall to full card view ---
+function zoomFromWall() {
+    const wallPos = getWallPositions();
+    const finals = getFinalPositions();
+    const rots = [-1.5, 1.2, -0.8, 2, -1, 0.5, -1.8, 1];
+    const duration = 2000;
 
-// ===========================
-// PHOTO REVEAL PHASE
-// ===========================
-const PHOTO_HOLD = 2000;     // Show original photo for 2s
-const PHOTO_FADE = 2500;     // Fade-out duration (matches CSS transition)
-const PHOTO_TOTAL = PHOTO_HOLD + PHOTO_FADE; // Total time before animation starts
+    // Zoom + fade the background photo into the wall
+    if (introBg) introBg.classList.add('zoom-to-wall');
 
-function startPhotoReveal() {
-    // After PHOTO_HOLD ms, begin fading out the photo
-    setTimeout(() => {
-        if (photoReveal) photoReveal.classList.add('fade-out');
-        // Show the custom background objects as the photo fades
-        if (customBackgroundElements) customBackgroundElements.classList.add('visible');
-    }, PHOTO_HOLD);
+    // Animate each card from wall size to final card size
+    const startTime = performance.now();
 
-    // After the photo is fully faded, kick off the main animation
-    setTimeout(() => {
-        if (photoReveal) photoReveal.style.display = 'none';
-        startMainAnimation();
-    }, PHOTO_TOTAL);
+    function animateZoom(now) {
+        const elapsed = now - startTime;
+        let t = Math.min(elapsed / duration, 1);
+        const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+        for (let i = 0; i < 8; i++) {
+            const p = papers[i];
+            if (!p) continue;
+            const w = wallPos[i];
+            const f = finals[i];
+
+            const curX = w.x + (f.x - w.x) * easeT;
+            const curY = w.y + (f.y - w.y) * easeT;
+            const curW = w.w + (f.w - w.w) * easeT;
+            const curH = w.h + (f.h - w.h) * easeT;
+
+            Object.assign(p.style, {
+                left: curX + 'px', top: curY + 'px',
+                width: curW + 'px', height: curH + 'px',
+                transform: `rotate(${rots[i]}deg)`,
+                transition: 'none',
+            });
+        }
+
+        if (t < 1) {
+            requestAnimationFrame(animateZoom);
+        } else {
+            for (let i = 0; i < 8; i++) {
+                const p = papers[i];
+                if (!p) continue;
+                const f = finals[i];
+                Object.assign(p.style, {
+                    left: f.x + 'px', top: f.y + 'px',
+                    width: f.w + 'px', height: f.h + 'px',
+                    background: '', borderRadius: '6px',
+                    transform: `rotate(${rots[i]}deg)`,
+                    boxShadow: '', border: '',
+                });
+                p.classList.add('final');
+            }
+
+            setTimeout(() => {
+                if (introScene) introScene.style.overflow = 'visible';
+            }, 300);
+        }
+    }
+    requestAnimationFrame(animateZoom);
 }
+
+
 
 // ===========================
 // MAIN ANIMATION TIMELINE
@@ -454,7 +521,7 @@ function startMainAnimation() {
 
     createPapers();
 
-    const LINGER = 0;          // Man starts running immediately when photo fade ends
+    const LINGER = 1500;       // Man lingers for 1.5s before running
     const BLEND_DUR = 300;     // Quick blend from linger pose into running cycle
     const WALK_DUR = 3500;     // Run cycle duration (faster)
     const MAN_EXIT = LINGER + BLEND_DUR + WALK_DUR;
@@ -593,17 +660,19 @@ function startMainAnimation() {
 
     // Wind starts only after ALL papers have settled (including the slow floater)
     onAllPapersGrounded = () => {
-        // Fade out background elements (rail + lights) when wind starts
-        if (customBackgroundElements) {
-            customBackgroundElements.style.opacity = '0';
-        }
         showWindSwirls();
-        blowPapersToFinal();
+        blowPapersToWall();
 
-        // After cards settle into final grid, allow scrolling to see all rows
-        setTimeout(() => {
-            if (introScene) introScene.style.overflow = 'visible';
-        }, 5000);
+        // After cards settle on the wall, pause briefly then zoom in
+        onAllCardsOnWall = () => {
+            setTimeout(() => {
+                zoomFromWall();
+                // Show nav after zoom completes
+                setTimeout(() => {
+                    if (mainNav) mainNav.classList.add('visible');
+                }, 2200);
+            }, 800);
+        };
 
         if (logoText) {
             logoText.classList.add('blown');
@@ -647,20 +716,14 @@ function startMainAnimation() {
             }
             requestAnimationFrame(animateText);
         }
-
-        // Show nav after wind animation settles
-        setTimeout(() => {
-            if (mainNav) mainNav.classList.add('visible');
-        }, 2000);
     };
 }
 
+// Scroll to top on load so animation starts at the beginning
+window.scrollTo(0, 0);
+
 // Kick it off
-if (photoReveal) {
-    startPhotoReveal();
-} else {
-    startMainAnimation();
-}
+startMainAnimation();
 
 // --- Mobile Menu ---
 const navHamburger = document.getElementById('navHamburger');

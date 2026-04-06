@@ -13,40 +13,13 @@
 
 <body>
 
-  <!-- =============================================
-       PHOTO REVEAL OVERLAY
-       Shows the original logo photo, then fades out
-       ============================================= -->
-  <div class="photo-reveal" id="photoReveal">
-    <img src="/original_logo_photo.JPG" alt="Original logo photograph — silhouette of a man walking" class="photo-reveal-img" />
-  </div>
-
   <div class="intro-scene" id="introScene">
+
+    <!-- Background photo layer (separate element for GPU-accelerated zoom) -->
+    <div class="intro-bg" id="introBg"></div>
 
     <!-- Container that perfectly mirrors the object-fit: cover of the photo -->
     <div class="photo-tracker" id="photoTracker">
-
-      <!-- Custom Background Lines & Lights from Builder Tool -->
-      <div id="customBackgroundElements">
-        <div class="custom-bg-el-0"></div> <!-- Horizontal Rail -->
-
-        <!-- Background Lights el 5-19 (15 total) -->
-        <div class="custom-bg-el-5"></div>
-        <div class="custom-bg-el-6"></div>
-        <div class="custom-bg-el-7"></div>
-        <div class="custom-bg-el-8"></div>
-        <div class="custom-bg-el-9"></div>
-        <div class="custom-bg-el-10"></div>
-        <div class="custom-bg-el-11"></div>
-        <div class="custom-bg-el-12"></div>
-        <div class="custom-bg-el-13"></div>
-        <div class="custom-bg-el-14"></div>
-        <div class="custom-bg-el-15"></div>
-        <div class="custom-bg-el-16"></div>
-        <div class="custom-bg-el-17"></div>
-        <div class="custom-bg-el-18"></div>
-        <div class="custom-bg-el-19"></div>
-      </div>
 
       <!-- Articulated SVG running man -->
       <div class="man-container" id="manContainer">
